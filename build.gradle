@@ -1,0 +1,26 @@
+plugins {
+    id 'java'
+    id 'idea'
+    id 'eclipse'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://jitpack.io' }
+}
+dependencies {
+    implementation("com.gitlab.StrategyGameEngine:Strategy-Game-Engine:v1.0.7")
+    implementation('com.gitlab.StrategyGameEngine:sge-risk:v1.0.7')
+}
+
+jar {
+    manifest {
+        attributes("Sge-Type": "agent",
+                "Agent-Class": "org.example.Trisker",
+                "Agent-Name": "Trisker")
+    }
+}
