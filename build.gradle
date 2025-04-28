@@ -18,6 +18,8 @@ dependencies {
 }
 
 jar {
+    // Its cleaner to just take the jar from the build folder or maybe copy it after building
+    // destinationDirectory.set(file("./environment/agents"))
     manifest {
         attributes("Sge-Type": "agent",
                 "Agent-Class": "org.example.Trisker",
