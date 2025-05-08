@@ -3,7 +3,6 @@ package org.example.mcts;
 import at.ac.tuwien.ifs.sge.game.risk.board.Risk;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskAction;
 
-import java.util.List;
 import java.util.Set;
 
 public class UCBLogic {
@@ -37,12 +36,12 @@ public class UCBLogic {
 
   public static UCBNode selectBest(UCBNode node) {
     UCBNode best = null;
-    double bestValue = -1;
+    double bestValue = Double.MIN_VALUE;
     for(UCBNode child : node.getChildren()) {
       double ucb = calculateUCB(child);
       if(ucb == Double.MAX_VALUE)
         return child;
-      if(ucb > bestValue) {
+      if(ucb > bestValue || best == null) {
         best = child;
         bestValue = ucb;
       }

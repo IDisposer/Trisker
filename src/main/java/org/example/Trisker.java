@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 //Run command for the game engine:
@@ -29,10 +30,9 @@ import java.util.stream.Collectors;
 public class Trisker extends AbstractGameAgent<Risk, RiskAction>
         implements GameAgent<Risk, RiskAction> {
 
-  private HashMap<Integer, Double> territoryRewards = null;
-  private HashMap<Integer, RiskContinent> occupiedContinents = new HashMap<>();
   private HashMap<Integer, Continent> continents = null;
   private boolean isFirstRound = true;
+  private HashSet<Integer> opponentIds = new HashSet<>();
   private static int counter = 0;
 
 
@@ -70,14 +70,14 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
       UCBNode node = root;
       while(!shouldStopComputation()) {
         if(node.getVisits() == 0 && node.getChildren().isEmpty()) {
-          double value = startRandomSimulation(node);
+          double value = startSimulation(node);
           //log.warn(value);
           UCBLogic.backpropagate(node, value);
           node = root;
         } else if (node.getChildren().isEmpty()) {
           UCBLogic.expandAll(node, node.getState().getPossibleActions());
           node = UCBLogic.selectBest(node);
-          double value = startRandomSimulation(node);
+          double value = startSimulation(node);
           //log.warn(value);
           UCBLogic.backpropagate(node, value);
           node = root;
@@ -98,18 +98,62 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     return new UCBNode(null, null, game);
   }
 
+  private double startSimulation(UCBNode node) {
+    return startGreedySimulation(node);
+  }
+
   private double startRandomSimulation(UCBNode node) {
     Risk game = new Risk(node.getState());
     int cnt = 0;
-    while(RiskState.isInitialPlacingPhase(game.getBoard()) && cnt < 4) {
+    while(RiskState.isInitialPlacingPhase(game.getBoard())) {
       RiskAction action = game.getPossibleActions().stream()
               .skip(random.nextInt(game.getPossibleActions().size())).findFirst().get();
       //log.warn(action.toString());
       game = (Risk) game.doAction(action);
+      if(game.getCurrentPlayer() != playerId)
+        opponentIds.add(game.getCurrentPlayer());
       cnt++;
     }
+    return calculateTotalRewardsOfPlayerMinusOpponentsRewards(playerId, game);
+  }
 
-    return calculateTotalRewardsOfPlayer(playerId, game, distributeTerritoryRewards(game));
+  private double startGreedySimulation(UCBNode node) {
+    Risk game = new Risk(node.getState());
+    int cnt = 0;
+    while(RiskState.isInitialPlacingPhase(game.getBoard()) && cnt < 4) {
+      HashMap<Integer, Double> territoryRewards = distributeTerritoryRewards(game);
+      RiskAction action = findHighestRewardAction(territoryRewards, game.getPossibleActions());
+      game = (Risk) game.doAction(action);
+      if(game.getCurrentPlayer() != playerId)
+        opponentIds.add(game.getCurrentPlayer());
+      cnt++;
+    }
+    return calculateTotalRewardsOfPlayerMinusOpponentsRewards(playerId, game);
+  }
+
+  private RiskAction findHighestRewardAction(HashMap<Integer, Double> territoryRewards, Set<RiskAction> possibleActions) {
+    RiskAction best = null;
+    double bestValue = Double.NEGATIVE_INFINITY;
+    int territoryId = 0;
+    double territoryReward = 0;
+    for(RiskAction action : possibleActions) {
+      //The only way to get the target of an action is to extract it from action.toString()
+      territoryId = Integer.parseInt(action.toString().split(Pattern.quote(")->"))[1]);
+      territoryReward = territoryRewards.get(territoryId);
+      if(territoryReward > bestValue || best == null) {
+        bestValue = territoryReward;
+        best = action;
+      }
+    }
+    return best;
+  }
+
+  private double calculateTotalRewardsOfPlayerMinusOpponentsRewards(int playerId, Risk game) {
+    double rewards = calculateTotalRewardsOfPlayer(playerId, (Risk) game.getGame(playerId), distributeTerritoryRewards((Risk) game.getGame(playerId)));
+    for(Integer opponentId : opponentIds) {
+      rewards -= calculateTotalRewardsOfPlayer(opponentId, (Risk) game.getGame(opponentId), distributeTerritoryRewards((Risk) game.getGame(opponentId)));
+    }
+    return rewards;
   }
 
   private double calculateTotalRewardsOfPlayer(int playerId, Risk game, HashMap<Integer, Double> territoryRewards) {
@@ -146,32 +190,39 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
 
   private HashMap<Integer, Double> distributeTerritoryRewards(Risk game) {
     RiskBoard board = game.getBoard();
-    updateRewardsByContinent();
+
     HashMap<Integer, Double> territoryRewards = new HashMap<>();
-    Set<Integer> occupiedContinentIds = new HashSet();
+    HashMap<Integer, Integer> occupiedContinents = new HashMap();
 
     for(Map.Entry<Integer, RiskTerritory> entry : board.getTerritories().entrySet()){
-      if(entry.getValue().getOccupantPlayerId() == playerId) {
-        occupiedContinentIds.add(entry.getValue().getContinentId());
+      if(entry.getValue().getOccupantPlayerId() == game.getCurrentPlayer()) {
+        if(occupiedContinents.containsKey(entry.getKey())) {
+          occupiedContinents.put(entry.getKey(), occupiedContinents.get(entry.getKey()) + 1);
+        } else {
+          occupiedContinents.put(entry.getKey(), 1);
+        }
       }
     }
+
+    updateRewardsByContinent(occupiedContinents);
 
     board.getTerritoryIds().forEach(id -> {
       double rewardToGive = 0.d;
       Set<Integer> neighbors = board.neighboringTerritories(id);
       List<Integer> nList = new ArrayList<>(neighbors);
 
-      if(neighbors.size() == 2 && territoriesBelongToDifferentContinents(board, nList.getFirst(), nList.get(1))) {
+      if(territoriesBelongToDifferentContinents(board, nList)) {
         //territory is a transition
         rewardToGive += RewardFactors.TRANSITION_REWARD_FACTOR;
-        //both neighbouring territories get +1 reward since they are one territory away from a transition
+        //all neighbouring territories get reward since they are one territory away from a transition
         neighbors.forEach(neighborId -> {
+          double toAdd = territoryRewards.get(neighborId) != null ? territoryRewards.get(neighborId) : 0.d;
           territoryRewards.put(neighborId,
-                territoryRewards.get(neighborId) + RewardFactors.TRANSITION_NEIGHBOR_REWARD_FACTOR);
+                toAdd + RewardFactors.TRANSITION_NEIGHBOR_REWARD_FACTOR);
         });
       }
       int continentId = board.getTerritories().get(id).getContinentId();
-      if(occupiedContinentIds.contains(continentId)) {
+      if(occupiedContinents.containsKey(continentId)) {
         rewardToGive += RewardFactors.CONTINENT_REWARD_FACTOR * continents.get(continentId).getReward();
         int neighboringEnemyTerritories = board.neighboringEnemyTerritories(id).size();
         if(neighboringEnemyTerritories > 0 && neighboringEnemyTerritories < 3) {
@@ -183,14 +234,17 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     return territoryRewards;
   }
 
-  private boolean territoriesBelongToDifferentContinents(RiskBoard board, Integer t1, Integer t2) {
+  private boolean territoriesBelongToDifferentContinents(RiskBoard board, List<Integer> territoryIds) {
     Map<Integer, RiskTerritory> territories = board.getTerritories();
-    return territories.get(t1).getContinentId() != territories.get(t2).getContinentId();
-  }
-
-  private boolean isPartOfOccupiedContinent(RiskBoard board, Integer t) {
-    Integer cId = board.getTerritories().get(t).getContinentId();
-    return occupiedContinents.containsKey(cId);
+    int previous = territories.get(territoryIds.get(0)).getContinentId();
+    Integer current = null;
+    for(int i = 0; i < territoryIds.size(); i++) {
+      current = territories.get(territoryIds.get(i)).getContinentId();
+      if(previous != current)
+        return true;
+      previous = current;
+    }
+    return false;
   }
 
   private void createRewardsByContinent() {
@@ -206,12 +260,13 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     });
   }
 
-  private void updateRewardsByContinent() {
+  private void updateRewardsByContinent(HashMap<Integer, Integer> occupiedContinents) {
     continents.forEach((id, continent) -> {
       Double reward = continent.getReward();
       if(occupiedContinents.containsKey(id)) {
         //prioritize continents we already have some territories in
-        reward += RewardFactors.OCCUPIED_CONTINENT_REWARD_FACTOR;
+        reward += RewardFactors.OCCUPIED_CONTINENT_REWARD_FACTOR +
+                occupiedContinents.get(id) * RewardFactors.OCCUPIED_CONTINENT_ADDITIONAL_FOR_EACH_TERRITORY_ALREADY_OCCUPIED_REWARD_FACTOR;
       }
       continent.setReward(reward);
     });
