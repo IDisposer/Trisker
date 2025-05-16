@@ -45,3 +45,4 @@ bin/
 
 ### Custom ###
 environment
+event-logs.log

@@ -1,0 +1,26 @@
+* {
+    /* font-family: "Changa One", sans-serif; */
+    font-family: monospace;
+}
+
+#left-panel {
+    /* display: none; */
+
+    width: 100%;
+    height: 100%;
+
+    graph {
+        width: 100%;
+        height: 100%;
+    }
+}
+
+#right-panel {
+    /* display: none; */
+    width: 100%;
+    height: 100%;
+
+    p {
+        white-space: pre-wrap;
+    }
+}

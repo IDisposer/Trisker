@@ -5,7 +5,6 @@ import at.ac.tuwien.ifs.sge.engine.Logger;
 import at.ac.tuwien.ifs.sge.game.risk.board.Risk;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskAction;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskBoard;
-import at.ac.tuwien.ifs.sge.game.risk.board.RiskContinent;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskTerritory;
 import org.example.data.Continent;
 import org.example.data.RewardFactors;
@@ -22,7 +21,6 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.List;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 //Run command for the game engine:
 //java -jar sge-1.0.7-exe.jar match --file=sge-risk-1.0.7-exe.jar --directory=agentstest
@@ -44,6 +42,7 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
   @Override
   public void setUp(int numberOfPlayers, int playerId) {
     super.setUp(numberOfPlayers, playerId);
+    EventLogService.reset();
   }
 
   private void ownSetup(Risk game)  {
@@ -55,6 +54,7 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
   public RiskAction computeNextAction(Risk game,
                              long computationTime,
                              TimeUnit timeUnit){
+    EventLogService.logBoard("ENEMY", game);
     if(isFirstRound){
       isFirstRound = false;
       ownSetup(game);
@@ -87,7 +87,9 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
       }
       log.warn("Best one Taken: ");
       log.warn(UCBLogic.calculateUCB(UCBLogic.selectBest(root)));
-      return UCBLogic.selectBest(root).getRiskAction();
+      RiskAction bestAction = UCBLogic.selectBest(root).getRiskAction();
+      EventLogService.logBoard("OWN", (Risk) game.doAction(bestAction).getGame());
+      return bestAction;
     } else {
       System.exit(1);
       return List.copyOf(game.getPossibleActions()).get(0);

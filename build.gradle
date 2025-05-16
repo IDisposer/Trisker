@@ -15,14 +15,26 @@ repositories {
 dependencies {
     implementation("com.gitlab.StrategyGameEngine:Strategy-Game-Engine:v1.0.7")
     implementation('com.gitlab.StrategyGameEngine:sge-risk:v1.0.7')
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.19.0")
+    implementation("com.fasterxml.jackson.core:jackson-core:2.19.0")
+    implementation("com.fasterxml.jackson.core:jackson-annotations:2.19.0")
 }
 
 jar {
     // Its cleaner to just take the jar from the build folder or maybe copy it after building
     // destinationDirectory.set(file("./environment/agents"))
     manifest {
+        attributes "Main-Class": "org.example.Trisker"
+    }
+    manifest {
         attributes("Sge-Type": "agent",
                 "Agent-Class": "org.example.Trisker",
                 "Agent-Name": "Trisker")
+    }
+
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
     }
 }
