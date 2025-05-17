@@ -1,3 +1,4 @@
+import { copy } from "./utils.mjs";
 const boardContainer = document.getElementById('map');
 
 let boardData = null;;
@@ -236,10 +237,6 @@ function charToNumberRadix(char) {
     }
 
     return charCode - 97 + 10;
-}
-
-function copy(object) {
-    return JSON.parse(JSON.stringify(object));
 }
 
 function replaceAt(array, startIdx, replacement) {

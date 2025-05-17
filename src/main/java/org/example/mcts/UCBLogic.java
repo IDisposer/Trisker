@@ -13,6 +13,9 @@ public class UCBLogic {
     if(node.getVisits() == 0)
       return Double.MAX_VALUE;
 
+    // TOOD: Remove me
+    if (node.getParent() == null) return 0;
+
     double ucb = node.getTotal() + EXPLORATION_FACTOR
             * Math.sqrt(Math.log(node.getParent().getVisits()) / node.getVisits());
     return ucb;
@@ -23,6 +26,9 @@ public class UCBLogic {
     node.setTotal(node.getTotal() + value);
     if(node.getParent() != null)
       backpropagate(node.getParent(), value);
+      // START: Delete me
+      node.setUcbValue(UCBLogic.calculateUCB(node));
+      // END: Delete me
   }
 
   public static void expandAll(UCBNode node, Set<RiskAction> possibleActions) {

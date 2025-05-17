@@ -1,9 +1,12 @@
-package org.example;
+package org.example.log;
 
 import at.ac.tuwien.ifs.sge.game.risk.board.Risk;
+import at.ac.tuwien.ifs.sge.game.risk.board.RiskAction;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskTerritory;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import org.example.mcts.TreeNode;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -15,12 +18,24 @@ import java.util.Map;
 
 public class EventLogService {
 
-  private static Path EVENT_LOG_FILE = Path.of("./event-logs.log");
-  private static boolean enabled = true;
+  private static final Path EVENT_LOG_FILE = Path.of("./event-logs.log");
+  private static final boolean ENABLED = true;
+  private static final int TREE_EVENT_LIMIT_PER_BOARD = 500;
+  private static int treeEventCounter = 0;
+
+  private static final ObjectMapper mapper;
+
+  static {
+    mapper = new ObjectMapper();
+
+    SimpleModule module = new SimpleModule();
+    module.addSerializer(RiskAction.class, new RiskActionSerializer());
+    mapper.registerModule(module);
+  }
 
   public enum Type {
     BOARD,
-    TREE
+    TREE // {Node: Id, N: 1, Children: [{Node: Id, N: 1 Children: []}]}
   }
 
   private static class LogEntry {
@@ -71,6 +86,12 @@ public class EventLogService {
   }
 
   public static void logBoard(String player, Risk game) {
+    if (!ENABLED) {
+      return;
+    }
+
+    treeEventCounter = 0;
+
     BoardLog boardLog = new BoardLog();
     boardLog.setTerritoryMap(game.getBoard().getTerritories());
     boardLog.setPlayer(player);
@@ -82,11 +103,25 @@ public class EventLogService {
     log(serialize(logEntry));
   }
 
-  public static void log(String logString) {
-    if (!enabled) {
+  public static void logTree(TreeNode<?> root) {
+    if (!ENABLED) {
       return;
     }
 
+    if (treeEventCounter == TREE_EVENT_LIMIT_PER_BOARD) {
+      return;
+    }
+
+    treeEventCounter++;
+
+    LogEntry logEntry = new LogEntry();
+    logEntry.setType(Type.TREE);
+    logEntry.setData(root);
+
+    log(serialize(logEntry));
+  }
+
+  public static void log(String logString) {
     logString += System.lineSeparator();
     try {
       if (Files.notExists(EVENT_LOG_FILE)) {
@@ -108,7 +143,7 @@ public class EventLogService {
 
   private static String serialize(Object object) {
     try {
-      return new ObjectMapper().writeValueAsString(object);
+      return mapper.writeValueAsString(object);
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
     }

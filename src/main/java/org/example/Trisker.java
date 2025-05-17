@@ -9,6 +9,7 @@ import at.ac.tuwien.ifs.sge.game.risk.board.RiskTerritory;
 import org.example.data.Continent;
 import org.example.data.RewardFactors;
 import org.example.general.RiskState;
+import org.example.log.EventLogService;
 import org.example.mcts.UCBLogic;
 import org.example.mcts.UCBNode;
 
@@ -66,7 +67,6 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
       UCBNode root = startMCSTree(game);
       UCBLogic.expandAll(root, game.getPossibleActions());
 
-
       UCBNode node = root;
       while(!shouldStopComputation()) {
         if(node.getVisits() == 0 && node.getChildren().isEmpty()) {
@@ -74,6 +74,8 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
           //log.warn(value);
           UCBLogic.backpropagate(node, value);
           node = root;
+
+          EventLogService.logTree(root);
         } else if (node.getChildren().isEmpty()) {
           UCBLogic.expandAll(node, node.getState().getPossibleActions());
           node = UCBLogic.selectBest(node);
@@ -81,6 +83,8 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
           //log.warn(value);
           UCBLogic.backpropagate(node, value);
           node = root;
+
+          EventLogService.logTree(root);
         } else {
           node = UCBLogic.selectBest(node);
         }

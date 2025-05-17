@@ -4,7 +4,12 @@ const yaml = require('js-yaml');
 const fs = require('fs/promises');
 const os = require('os');
 const app = express()
-const port = 3000
+const port = 3000;
+
+const eventLogsCache = {
+    lastModified: 0,
+    data: {}
+}
 
 // Dont use this server in production!
 // This server contains many major security risks for the system
@@ -25,10 +30,19 @@ app.get('/boards/:filename', async (req, res) => {
 
 app.get('/event-logs', async (req, res) => {
     const pathToFile = path.join(__dirname, '..', 'event-logs.log');
+
+    const stats = await fs.stat(pathToFile);
+    if (stats.mtimeMs === eventLogsCache.lastModified) {
+        res.send(eventLogsCache.data);
+        return;
+    }
+    eventLogsCache.lastModified = stats.mtimeMs;
+
     let fileContent = await fs.readFile(pathToFile, 'utf-8');
     let lines = fileContent.split('\n');
     lines.pop();
     lines = lines.map(l => JSON.parse(l));
+    eventLogsCache.data = lines;
     res.send(lines);
 });
 

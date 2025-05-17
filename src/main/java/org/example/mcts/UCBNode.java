@@ -6,6 +6,7 @@ import at.ac.tuwien.ifs.sge.game.risk.board.RiskAction;
 public class UCBNode extends TreeNode<UCBNode> {
   private double total = 0;
   private int visits = 0;
+  private double ucbValue = -1;
 
 
   public UCBNode(UCBNode parent, RiskAction riskAction, Risk state) {
@@ -28,4 +29,12 @@ public class UCBNode extends TreeNode<UCBNode> {
     this.visits = visits;
   }
 
+  public double getUcbValue() {
+    return ucbValue;
+  }
+
+  public UCBNode setUcbValue(double ucbValue) {
+    this.ucbValue = ucbValue;
+    return this;
+  }
 }
