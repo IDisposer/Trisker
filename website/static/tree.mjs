@@ -200,7 +200,7 @@ function assignNodeLabelsAndIdsRecursive(node, level) {
     node.level = level;
     const nextLevel = level + 1;
     node.children.forEach((c, idx) => {
-        c.nodeId = "n" + nextLevel + "_" + idx;
+        c.nodeId = node.nodeId + "|" + "n" + nextLevel + "_" + idx;
         assignNodeLabelsAndIdsRecursive(c, level + 1);
     });
 }
