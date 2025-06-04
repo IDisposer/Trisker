@@ -132,7 +132,7 @@ function buildPrintableTreeRecursive(graph, parent, node) {
 }
 
 function buildGraphChildren(node) {
-    const text = "v:" + node.visits + ",t:" + node.total + ",u:" + node.ucbValue;
+    const text =  node?.riskAction?.action + "|v:" + node.visits + ",t:" + node.total + ",u:" + node.ucbValue;
     const {width, height} = measureText(text);
     return {
         id: node.nodeId,

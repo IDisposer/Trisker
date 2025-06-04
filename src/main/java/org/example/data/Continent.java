@@ -8,7 +8,7 @@ import java.util.List;
 public class Continent extends RiskContinent {
   private Integer id = 0;
   private List<RiskTerritory> territories = null;
-  private Double reward = 0.d;
+  private Double baseReward = 0.d;
 
   public Continent(List<RiskTerritory> territories, int troopBonus, Integer id) {
     super(troopBonus);
@@ -30,11 +30,11 @@ public class Continent extends RiskContinent {
     return territories;
   }
 
-  public Double getReward() {
-    return reward;
+  public Double getBaseReward() {
+    return baseReward;
   }
 
-  public void setReward(Double reward) {
-    this.reward = reward;
+  public void setBaseReward(Double baseReward) {
+    this.baseReward = baseReward;
   }
 }

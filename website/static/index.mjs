@@ -12,6 +12,7 @@ async function init() {
     await Map.init();
     await Tree.init();
     eventLogs = await (await fetch('/event-logs')).json();
+    eventLogs = eventLogs.filter(x => x.type === 'BOARD');
 }
 
 async function start() {
