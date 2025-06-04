@@ -105,7 +105,7 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
   }
 
   private double startSimulation(UCBNode node) {
-    return startGreedySimulation(node);
+    return startRandomSimulation(node);
   }
 
   private double startRandomSimulation(UCBNode node) {
@@ -235,9 +235,27 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
           rewardToGive += RewardFactors.NEAR_ENEMY_REWARD_FACTOR;
         }
       }
+
+      if(isLastAvailableOfEnemyContinent(game, id, continentId)) {
+        rewardToGive += RewardFactors.LAST_ON_ENEMY_CONTINENT_REWARD_FACTOR;
+      }
+
       territoryRewards.put(id, rewardToGive);
     });
     return territoryRewards;
+  }
+
+  private boolean isLastAvailableOfEnemyContinent(Risk game, int territoryId, int continentId) {
+    if(opponentIds.contains(game.getBoard().getTerritories().get(territoryId).getOccupantPlayerId()))
+      return false;
+    Continent c = continents.get(continentId);
+    int seizedTerritories = 0;
+    for(RiskTerritory t : c.getTerritories()) {
+      if(opponentIds.contains(t.getOccupantPlayerId())) {
+        seizedTerritories++;
+      }
+    }
+    return seizedTerritories + 1 == c.getTerritories().size();
   }
 
   private boolean territoriesBelongToDifferentContinents(RiskBoard board, List<Integer> territoryIds) {
