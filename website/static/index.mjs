@@ -21,13 +21,14 @@ async function start() {
 }
 
 window.addEventListener('keydown', (e) => {
-    e.preventDefault();
     console.log(e.key);
     switch (e.key) {
         case 'F10':
+            e.preventDefault();
             finishEventTypeOrJumpToNext();
             break;
         case 'F11':
+            e.preventDefault();
             simulateNextEvent();
             break;
     }
