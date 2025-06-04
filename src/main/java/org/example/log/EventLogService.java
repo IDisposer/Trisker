@@ -20,7 +20,10 @@ public class EventLogService {
 
   private static final Path EVENT_LOG_FILE = Path.of("./event-logs.log");
   private static final boolean ENABLED = true;
-  private static final int TREE_EVENT_LIMIT_PER_BOARD = 500;
+  private static final int TREE_EVENT_LIMIT_PER_BOARD = 100;
+  private static final int TREE_START = 40;
+  private static final int TREE_END = 42;
+  private static int boardCounter = 0;
   private static int treeEventCounter = 0;
 
   private static final ObjectMapper mapper;
@@ -89,7 +92,7 @@ public class EventLogService {
     if (!ENABLED) {
       return;
     }
-
+    boardCounter++;
     treeEventCounter = 0;
 
     BoardLog boardLog = new BoardLog();
@@ -108,7 +111,7 @@ public class EventLogService {
       return;
     }
 
-    if (treeEventCounter == TREE_EVENT_LIMIT_PER_BOARD) {
+    if (boardCounter >= TREE_START || treeEventCounter == TREE_EVENT_LIMIT_PER_BOARD) {
       return;
     }
 

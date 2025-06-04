@@ -7,13 +7,12 @@ import java.util.Set;
 
 public class UCBLogic {
 
-  private static double EXPLORATION_FACTOR = 2;
+  private static double EXPLORATION_FACTOR = 6000;
 
   public static double calculateUCB(UCBNode node) {
     if(node.getVisits() == 0)
       return Double.MAX_VALUE;
 
-    // TOOD: Remove me
     if (node.getParent() == null) return 0;
 
     double ucb = node.getTotal() + EXPLORATION_FACTOR
