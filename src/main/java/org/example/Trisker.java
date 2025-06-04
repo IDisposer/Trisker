@@ -55,48 +55,62 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
   public RiskAction computeNextAction(Risk game,
                              long computationTime,
                              TimeUnit timeUnit){
-    EventLogService.logBoard("ENEMY", game);
-    if(isFirstRound){
-      isFirstRound = false;
-      ownSetup(game);
-    }
-    counter++;
-    //optionally set AbstractGameAgent timers
-    super.setTimers(computationTime, timeUnit);
-    if(RiskState.isInitialPlacingPhase(game.getBoard())) {
-      UCBNode root = startMCSTree(game);
-      UCBLogic.expandAll(root, game.getPossibleActions());
-
-      UCBNode node = root;
-      while(!shouldStopComputation()) {
-        if(node.getVisits() == 0 && node.getChildren().isEmpty()) {
-          double value = startSimulation(node);
-          //log.warn(value);
-          UCBLogic.backpropagate(node, value);
-          node = root;
-
-          EventLogService.logTree(root);
-        } else if (node.getChildren().isEmpty()) {
-          UCBLogic.expandAll(node, node.getState().getPossibleActions());
-          node = UCBLogic.selectBest(node);
-          double value = startSimulation(node);
-          //log.warn(value);
-          UCBLogic.backpropagate(node, value);
-          node = root;
-
-          EventLogService.logTree(root);
-        } else {
-          node = UCBLogic.selectBest(node);
-        }
+    try {
+      EventLogService.logBoard("ENEMY", game);
+      if(isFirstRound){
+        isFirstRound = false;
+        ownSetup(game);
       }
-      log.warn("Best one Taken: ");
-      log.warn(UCBLogic.calculateUCB(UCBLogic.selectBest(root)));
-      RiskAction bestAction = UCBLogic.selectBest(root).getRiskAction();
-      EventLogService.logBoard("OWN", (Risk) game.doAction(bestAction).getGame());
-      return bestAction;
-    } else {
-      System.exit(1);
-      return List.copyOf(game.getPossibleActions()).get(0);
+      counter++;
+      //optionally set AbstractGameAgent timers
+      super.setTimers(computationTime, timeUnit);
+      if(RiskState.isInitialPlacingPhase(game.getBoard())) {
+        UCBNode root = startMCSTree(game);
+        UCBLogic.expandAll(root, game.getPossibleActions());
+
+        UCBNode node = root;
+        while(!shouldStopComputation()) {
+          if(node.getVisits() == 0 && node.getChildren().isEmpty()) {
+            double value = startSimulation(node);
+            //log.warn(value);
+            UCBLogic.backpropagate(node, value);
+            node = root;
+
+            UCBLogic.calculateUCBRecursive(root);
+            EventLogService.logTree(root);
+          } else if (node.getChildren().isEmpty()) {
+            UCBLogic.expandAll(node, node.getState().getPossibleActions());
+            node = UCBLogic.selectBest(node);
+            double value = startSimulation(node);
+            //log.warn(value);
+            UCBLogic.backpropagate(node, value);
+            node = root;
+
+            UCBLogic.calculateUCBRecursive(root);
+            EventLogService.logTree(root);
+          } else {
+            node = UCBLogic.selectBest(node);
+          }
+        }
+        log.warn("Best one Taken: ");
+        UCBNode bestNode = UCBLogic.selectBest(root);
+        RiskAction bestAction = bestNode.getRiskAction();
+
+        UCBNode frontend = root.getChildren().stream().max((o1, o2) -> o1.getUcbValue() < o2.getUcbValue() ? -1 : 1).get();
+
+        log.warn(String.format("Backend: %s (%f), Frontend: %s (%f)",
+            bestAction, UCBLogic.calculateUCB(bestNode),
+            frontend.getRiskAction(), frontend.getUcbValue()
+        ));
+        EventLogService.logBoard("OWN", (Risk) game.doAction(bestAction).getGame());
+        return bestAction;
+      } else {
+        System.exit(1);
+        return List.copyOf(game.getPossibleActions()).get(0);
+      }
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      throw ex;
     }
   }
 

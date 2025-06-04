@@ -42,6 +42,11 @@ export async function init() {
 
 export async function onEvent(event) {
     prepareTree(event);
+
+    const choosenNode = event.children.reduce((a, b) => Math.max(a.ucbValue, b.ucbValue) == a.ucbValue ? a : b, {ucbValue: -Infinity});
+    console.log('Best child node: ', choosenNode)
+
+    console.log()
     const graphObject = buildPrintableTree(event);
     await layoutAndDraw(graphObject);
 }
@@ -183,7 +188,7 @@ function extractStateMap(node) {
 
 function extractStateMapRecursive(state, node) {
     if (!node) return;
-    const text = "v:" + node.visits + ",t:" + node.total + ",u:" + node.ucbValue;
+    const text = "v:" + node.visits + ",t:" + node.total;
     state[node.nodeId] = text;
     
     node.children.forEach((c) => {
@@ -192,15 +197,15 @@ function extractStateMapRecursive(state, node) {
 }
 
 function assignNodeLabelsAndIds(node) {
-    node.nodeId = "n" + 1;
-    assignNodeLabelsAndIdsRecursive(node, 1);
+    node.nodeId = "n" + 0;
+    assignNodeLabelsAndIdsRecursive(node, 0);
 }
 
 function assignNodeLabelsAndIdsRecursive(node, level) {
     node.level = level;
     const nextLevel = level + 1;
     node.children.forEach((c, idx) => {
-        c.nodeId = node.nodeId + "|" + "n" + nextLevel + "_" + idx;
+        c.nodeId = node.nodeId + "|" + c.riskAction.action;
         assignNodeLabelsAndIdsRecursive(c, level + 1);
     });
 }

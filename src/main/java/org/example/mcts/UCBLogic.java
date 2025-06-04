@@ -23,9 +23,6 @@ public class UCBLogic {
     node.setTotal(node.getTotal() + value);
     if(node.getParent() != null) {
       backpropagate(node.getParent(), value);
-      // START: Delete me
-      node.setUcbValue(UCBLogic.calculateUCB(node));
-      // END: Delete me
     }
   }
 
@@ -51,5 +48,15 @@ public class UCBLogic {
       }
     }
     return best;
+  }
+
+  /**
+   * LOGGING ONLY!!!
+   */
+  public static void calculateUCBRecursive(UCBNode node) {
+    node.getChildren().forEach((c -> {
+      c.setUcbValue(UCBLogic.calculateUCB(c));
+      calculateUCBRecursive(c);
+    }));
   }
 }
