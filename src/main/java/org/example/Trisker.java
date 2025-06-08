@@ -34,6 +34,7 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
   private HashSet<Integer> opponentIds = new HashSet<>();
   private static int counter = 0;
   private int proportion = 0;
+  private final int TOTAL_RUNS_PER_ROUND = 1400;
 
 
 
@@ -134,8 +135,9 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
 
   private double startRandomSimulation(UCBNode node) {
     Risk game = new Risk(node.getState());
+    game = (Risk) game.doAction(node.getRiskAction());
     int cnt = 0;
-    while(!game.isGameOver() && !shouldStopComputation(2) && cnt < 31) { //RiskState.isInitialPlacingPhase(game.getBoard())
+    while(!game.isGameOver() && !shouldStopComputation() && cnt < TOTAL_RUNS_PER_ROUND / proportion) { //RiskState.isInitialPlacingPhase(game.getBoard())
       RiskAction action = game.getPossibleActions().stream()
               .skip(random.nextInt(game.getPossibleActions().size())).findFirst().get();
       //log.warn(action.toString());
@@ -144,7 +146,7 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
         opponentIds.add(game.getCurrentPlayer());
       cnt++;
     }
-    System.out.println(cnt);
+    //System.out.println(cnt);
     return game.isGameOver() && game.getBoard().isPlayerStillAlive(playerId) ?
             5000 : !game.isGameOver() ? calculateTotalRewardsOfPlayerMinusOpponentsRewards(playerId, game) : -1000;//calculateTotalRewardsOfPlayerMinusOpponentsRewards(playerId, game);
   }
@@ -181,14 +183,13 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
   }
 
   private double calculateTotalRewardsOfPlayerMinusOpponentsRewards(int playerId, Risk game) {
-
     double rewards = calculateTotalRewardsOfPlayer(playerId, (Risk) game.getGame(playerId), distributeTerritoryRewards((Risk) game.getGame(playerId)));
     //log.warn("Total rewards: " + rewards);
     for(Integer opponentId : opponentIds) {
       //log.warn("Total rewards Opponent: " + calculateTotalRewardsOfPlayer(opponentId, (Risk) game.getGame(opponentId), distributeTerritoryRewards((Risk) game.getGame(opponentId))));
       rewards -= calculateTotalRewardsOfPlayer(opponentId, (Risk) game.getGame(opponentId), distributeTerritoryRewards((Risk) game.getGame(opponentId)));
     }
-
+    //log.warn("");
     return rewards;
   }
 
@@ -201,7 +202,7 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
         total += territoryRewards.get(entry.getKey());
       }
     }
-    //log.warn("Hello darkness my old friend: " + total
+    //log.warn(playerId + " Total: " + total
     //        + "(" + board.getTerritories().values().stream().filter(territory -> territory.getOccupantPlayerId() == playerId).count() + ")");
     return total;
   }
