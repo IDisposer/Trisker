@@ -7,7 +7,7 @@ import java.util.Set;
 
 public class UCBLogic {
 
-  private static double EXPLORATION_FACTOR = 100;
+  private static double EXPLORATION_FACTOR = 1000;
 
   public static double calculateUCB(UCBNode node) {
     if(node.getVisits() == 0)

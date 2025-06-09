@@ -39,6 +39,7 @@ function finishEventTypeOrJumpToNext() {
     switch (eventLogs[currentEventIdx].type) {
         case 'BOARD':
             simulateNextEvent();
+            currentEventIdx+=20;
             break;
         case 'TREE':
             if (eventLogs[currentEventIdx - 1].type === 'BOARD') {

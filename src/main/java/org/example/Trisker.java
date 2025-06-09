@@ -21,10 +21,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.List;
-import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 //Run command for the game engine:
 //java -jar sge-1.0.7-exe.jar match --file=sge-risk-1.0.7-exe.jar --directory=agentstest
+//https://gitlab.com/StrategyGameEngine/sge-risk
 
 public class Trisker extends AbstractGameAgent<Risk, RiskAction>
         implements GameAgent<Risk, RiskAction> {
@@ -35,7 +36,6 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
   private static int counter = 0;
   private int proportion = 0;
   private final int TOTAL_RUNS_PER_ROUND = 1400;
-
 
 
   public Trisker(Logger log){
@@ -66,10 +66,10 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
       counter++;
       //optionally set AbstractGameAgent timers
       super.setTimers(computationTime, timeUnit);
-      if(RiskState.isInitialPlacingPhase(game.getBoard())) {
+      if(RiskState.isInitialPlacingPhase(game.getBoard())) {  // !game.isGameOver()
         UCBNode root = startMCSTree(game);
         UCBLogic.expandAll(root, game.getPossibleActions());
-        proportion = game.getPossibleActions().size();
+        proportion = root.getChildren().size();
         UCBNode node = root;
         while(!shouldStopComputation()) {
           if(node.getVisits() == 0 && node.getChildren().isEmpty()) {
@@ -82,7 +82,7 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
             EventLogService.logTree(root);
           } else if (node.getChildren().isEmpty()) {
             UCBLogic.expandAll(node, node.getState().getPossibleActions());
-            proportion = node.getState().getPossibleActions().size();
+            proportion = node.getChildren().size();
             node = UCBLogic.selectBest(node);
             double value = startSimulation(node);
             //log.warn(value);
@@ -130,8 +130,12 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
   }
 
   private double startSimulation(UCBNode node) {
-    return startRandomSimulation(node);
+    return startRandomSimulation2(node);
   }
+
+  //Idee: Die rewards nach jedem random step anschauen und unserem bot mehr punkte geben für actions die früher gemacht werden.
+  //d.h. de gegebenen rewards zB durch cnt zu dividieren. Damit werden gute actions de früher gemacht werden besser bewertet als die de
+  //später gemacht werden. Des is ja auch gut, da actions de später gemacht werden viel unwahrscheinlicher sind, dass sie jemals eintreten.
 
   private double startRandomSimulation(UCBNode node) {
     Risk game = new Risk(node.getState());
@@ -149,6 +153,31 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     //System.out.println(cnt);
     return game.isGameOver() && game.getBoard().isPlayerStillAlive(playerId) ?
             5000 : !game.isGameOver() ? calculateTotalRewardsOfPlayerMinusOpponentsRewards(playerId, game) : -1000;//calculateTotalRewardsOfPlayerMinusOpponentsRewards(playerId, game);
+  }
+
+  private double startRandomSimulation2(UCBNode node) {
+    Double points = 0.d;
+    Risk game = new Risk(node.getState());
+    game = (Risk) game.doAction(node.getRiskAction());
+    int targetId, cnt = 0;
+    while(!game.isGameOver() && !shouldStopComputation() && cnt < TOTAL_RUNS_PER_ROUND / proportion) { //RiskState.isInitialPlacingPhase(game.getBoard())
+      cnt++;
+      if(game.getCurrentPlayer() != playerId) {
+        opponentIds.add(game.getCurrentPlayer());
+        //if the current player is the enemy, the previous action was taken by us (since there is only one opponent)
+        targetId = getTargetOfAction(game.getPreviousAction());
+
+        points += targetId >= 0 ?
+                distributeTerritoryRewards((Risk) game.getGame(playerId)).get(targetId) / cnt*10 : //dividing by count so earlier good decisions get rewarded higher than later good decisions
+                0;
+      }
+      Set<RiskAction> actions = game.getPossibleActions();
+      RiskAction action = actions.stream()
+              .skip(random.nextInt(actions.size())).findFirst().get();
+      game = (Risk) game.doAction(action);
+    }
+    return game.isGameOver() && game.getBoard().isPlayerStillAlive(playerId) ?
+            5000 : !game.isGameOver() ? points : -1000;//calculateTotalRewardsOfPlayerMinusOpponentsRewards(playerId, game);
   }
 
   private double startGreedySimulation(UCBNode node) {
@@ -171,8 +200,7 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     int territoryId = 0;
     double territoryReward = 0;
     for(RiskAction action : possibleActions) {
-      //The only way to get the target of an action is to extract it from action.toString()
-      territoryId = Integer.parseInt(action.toString().split(Pattern.quote(")->"))[1]);
+      territoryId = getTargetOfAction(action);
       territoryReward = territoryRewards.get(territoryId);
       if(territoryReward > bestValue || best == null) {
         bestValue = territoryReward;
@@ -180,6 +208,10 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
       }
     }
     return best;
+  }
+
+  private int getTargetOfAction(RiskAction action) {
+    return action.selected();
   }
 
   private double calculateTotalRewardsOfPlayerMinusOpponentsRewards(int playerId, Risk game) {
