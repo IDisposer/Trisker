@@ -6,8 +6,9 @@ import at.ac.tuwien.ifs.sge.game.risk.board.Risk;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskAction;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskBoard;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskTerritory;
+import org.example.data.AttackRewardFactors;
 import org.example.data.Continent;
-import org.example.data.RewardFactors;
+import org.example.data.PlacingRewardFactors;
 import org.example.general.RiskState;
 import org.example.log.EventLogService;
 import org.example.mcts.UCBLogic;
@@ -66,7 +67,7 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
       counter++;
       //optionally set AbstractGameAgent timers
       super.setTimers(computationTime, timeUnit);
-      if(RiskState.isInitialPlacingPhase(game.getBoard())) {  // !game.isGameOver()
+      if(!game.isGameOver()) {  // RiskState.isInitialPlacingPhase(game.getBoard())
         UCBNode root = startMCSTree(game);
         UCBLogic.expandAll(root, game.getPossibleActions());
         proportion = root.getChildren().size();
@@ -133,10 +134,6 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     return startRandomSimulation2(node);
   }
 
-  //Idee: Die rewards nach jedem random step anschauen und unserem bot mehr punkte geben für actions die früher gemacht werden.
-  //d.h. de gegebenen rewards zB durch cnt zu dividieren. Damit werden gute actions de früher gemacht werden besser bewertet als die de
-  //später gemacht werden. Des is ja auch gut, da actions de später gemacht werden viel unwahrscheinlicher sind, dass sie jemals eintreten.
-
   private double startRandomSimulation(UCBNode node) {
     Risk game = new Risk(node.getState());
     game = (Risk) game.doAction(node.getRiskAction());
@@ -160,16 +157,19 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     Risk game = new Risk(node.getState());
     game = (Risk) game.doAction(node.getRiskAction());
     int targetId, cnt = 0;
+    HashMap<Integer, Double> territoryRewards;
     while(!game.isGameOver() && !shouldStopComputation() && cnt < TOTAL_RUNS_PER_ROUND / proportion) { //RiskState.isInitialPlacingPhase(game.getBoard())
       cnt++;
       if(game.getCurrentPlayer() != playerId) {
         opponentIds.add(game.getCurrentPlayer());
         //if the current player is the enemy, the previous action was taken by us (since there is only one opponent)
         targetId = getTargetOfAction(game.getPreviousAction());
-
-        points += targetId >= 0 ?
-                distributeTerritoryRewards((Risk) game.getGame(playerId)).get(targetId) / cnt*10 : //dividing by count so earlier good decisions get rewarded higher than later good decisions
-                0;
+        if(targetId >= 0) {
+          territoryRewards = RiskState.isInitialPlacingPhase(game.getBoard()) ? distributeTerritoryRewards((Risk) game.getGame(playerId)) : distributeTerritoryRewardsAttack((Risk) game.getGame(playerId));
+          points += territoryRewards.get(targetId);
+        } else if (targetId == -1) {
+          points += getRewardForCasualties(game.getPreviousAction());
+        }
       }
       Set<RiskAction> actions = game.getPossibleActions();
       RiskAction action = actions.stream()
@@ -177,37 +177,12 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
       game = (Risk) game.doAction(action);
     }
     return game.isGameOver() && game.getBoard().isPlayerStillAlive(playerId) ?
-            5000 : !game.isGameOver() ? points : -1000;//calculateTotalRewardsOfPlayerMinusOpponentsRewards(playerId, game);
+            5000 : !game.isGameOver() ? points / cnt * 10 : -1000;//calculateTotalRewardsOfPlayerMinusOpponentsRewards(playerId, game);
   }
 
-  private double startGreedySimulation(UCBNode node) {
-    Risk game = new Risk(node.getState());
-    int cnt = 0;
-    while(RiskState.isInitialPlacingPhase(game.getBoard()) && cnt < 4) {
-      HashMap<Integer, Double> territoryRewards = distributeTerritoryRewards(game);
-      RiskAction action = findHighestRewardAction(territoryRewards, game.getPossibleActions());
-      game = (Risk) game.doAction(action);
-      if(game.getCurrentPlayer() != playerId)
-        opponentIds.add(game.getCurrentPlayer());
-      cnt++;
-    }
-    return calculateTotalRewardsOfPlayerMinusOpponentsRewards(playerId, game);
-  }
-
-  private RiskAction findHighestRewardAction(HashMap<Integer, Double> territoryRewards, Set<RiskAction> possibleActions) {
-    RiskAction best = null;
-    double bestValue = Double.NEGATIVE_INFINITY;
-    int territoryId = 0;
-    double territoryReward = 0;
-    for(RiskAction action : possibleActions) {
-      territoryId = getTargetOfAction(action);
-      territoryReward = territoryRewards.get(territoryId);
-      if(territoryReward > bestValue || best == null) {
-        bestValue = territoryReward;
-        best = action;
-      }
-    }
-    return best;
+  private double getRewardForCasualties(RiskAction action) {
+    return action.attackerCasualties() - action.defenderCasualties() < 0 ?
+            AttackRewardFactors.LESS_CASUALTIES_REWARD_FACTOR : AttackRewardFactors.MORE_CASUALTIES_REWARD_FACTOR;
   }
 
   private int getTargetOfAction(RiskAction action) {
@@ -263,6 +238,97 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     RiskBoard board = game.getBoard();
 
     HashMap<Integer, Double> territoryRewards = new HashMap<>();
+    HashMap<Integer, Integer> occupiedContinents = createOccupiedContinentsMap(game);
+
+    HashMap<Integer, Double> contRewards = updateRewardsByContinent(occupiedContinents);
+
+    board.getTerritoryIds().forEach(id -> {
+      double rewardToGive = 0.d;
+      Set<Integer> neighbors = board.neighboringTerritories(id);
+      List<Integer> nList = new ArrayList<>(neighbors);
+
+      if(territoriesBelongToDifferentContinents(board, nList)) {
+        //territory is a transition
+        rewardToGive += PlacingRewardFactors.TRANSITION_REWARD_FACTOR;
+        //all neighbouring territories get reward since they are one territory away from a transition
+        neighbors.forEach(neighborId -> {
+          double toAdd = territoryRewards.get(neighborId) != null ? territoryRewards.get(neighborId) : 0.d;
+          territoryRewards.put(neighborId,
+                toAdd + PlacingRewardFactors.TRANSITION_NEIGHBOR_REWARD_FACTOR);
+        });
+      }
+      int continentId = board.getTerritories().get(id).getContinentId();
+      if(occupiedContinents.containsKey(continentId)) {
+        rewardToGive += PlacingRewardFactors.CONTINENT_REWARD_FACTOR * contRewards.get(continentId);
+        int neighboringEnemyTerritories = board.neighboringEnemyTerritories(id).size();
+        if(neighboringEnemyTerritories > 0 && neighboringEnemyTerritories < 3) {
+          rewardToGive += PlacingRewardFactors.NEAR_ENEMY_REWARD_FACTOR;
+        }
+      }
+
+      if(game.getCurrentPlayer() == playerId && isLastAvailableOfEnemyContinent(game, id)) {
+        rewardToGive += PlacingRewardFactors.LAST_ON_ENEMY_CONTINENT_REWARD_FACTOR;
+      }
+      double toAdd = territoryRewards.get(id) != null ? territoryRewards.get(id) : 0.d;
+      territoryRewards.put(id, toAdd + rewardToGive);
+    });
+    return territoryRewards;
+  }
+
+  private HashMap<Integer, Double> distributeTerritoryRewardsAttack(Risk game) {
+    RiskBoard board = game.getBoard();
+    HashMap<Integer, Double> territoryRewards = new HashMap<>();
+    HashMap<Integer, Integer> occupiedContinents = createOccupiedContinentsMap(game);
+    HashMap<Integer, Double> contRewards = updateRewardsByContinent(occupiedContinents);
+
+    board.getTerritoryIds().forEach(id -> {
+      double rewardToGive = 0.d;
+      Set<Integer> neighbors = board.neighboringTerritories(id);
+      List<Integer> nList = new ArrayList<>(neighbors);
+
+      if(isLastEnemyOnContinent(game, id)) {
+        List<Integer> neighborsOnContinent = nList.stream()
+                .filter(x -> board.getTerritories().get(id).getContinentId() == board.getTerritories().get(x).getContinentId())
+                .collect(Collectors.toList());
+        for(Integer neighborId : neighborsOnContinent) {
+          double toAdd = territoryRewards.get(neighborId) != null ? territoryRewards.get(neighborId) : 0.d;
+          toAdd += board.getTerritories().get(id).getTroops() < board.getTerritories().get(neighborId).getTroops() ?
+                  AttackRewardFactors.MORE_TROOPS_NEAR_LAST_ENEMY_TERRITORY : 0.d;
+          territoryRewards.put(neighborId, toAdd);
+        }
+      }
+
+      if(territoriesBelongToDifferentContinents(board, nList)) {
+        //territory is a transition
+        rewardToGive += AttackRewardFactors.TRANSITION_REWARD_FACTOR;
+        //all neighbouring territories get reward since they are one territory away from a transition
+        neighbors.forEach(neighborId -> {
+          double toAdd = territoryRewards.get(neighborId) != null ? territoryRewards.get(neighborId) : 0.d;
+          territoryRewards.put(neighborId,
+                  toAdd + AttackRewardFactors.TRANSITION_NEIGHBOR_REWARD_FACTOR);
+        });
+      }
+      int continentId = board.getTerritories().get(id).getContinentId();
+      if(occupiedContinents.containsKey(continentId)) {
+        rewardToGive += AttackRewardFactors.CONTINENT_REWARD_FACTOR * contRewards.get(continentId);
+        int neighboringEnemyTerritories = board.neighboringEnemyTerritories(id).size();
+        if(neighboringEnemyTerritories > 0 && neighboringEnemyTerritories < 3) {
+          rewardToGive += AttackRewardFactors.NEAR_ENEMY_REWARD_FACTOR;
+        }
+      }
+
+      if(game.getCurrentPlayer() == playerId && isLastAvailableOfEnemyContinent(game, id)) {
+        rewardToGive += AttackRewardFactors.LAST_ON_ENEMY_CONTINENT_REWARD_FACTOR;
+      }
+
+      double toAdd = territoryRewards.get(id) != null ? territoryRewards.get(id) : 0.d;
+      territoryRewards.put(id, toAdd + rewardToGive);
+    });
+    return territoryRewards;
+  }
+
+  private HashMap<Integer, Integer> createOccupiedContinentsMap(Risk game) {
+    RiskBoard board = game.getBoard();
     HashMap<Integer, Integer> occupiedContinents = new HashMap<>();
 
     for(Map.Entry<Integer, RiskTerritory> entry : board.getTerritories().entrySet()){
@@ -275,46 +341,26 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
         }
       }
     }
-
-    HashMap<Integer, Double> contRewards = updateRewardsByContinent(occupiedContinents);
-
-    board.getTerritoryIds().forEach(id -> {
-      double rewardToGive = 0.d;
-      Set<Integer> neighbors = board.neighboringTerritories(id);
-      List<Integer> nList = new ArrayList<>(neighbors);
-
-      if(territoriesBelongToDifferentContinents(board, nList)) {
-        //territory is a transition
-        rewardToGive += RewardFactors.TRANSITION_REWARD_FACTOR;
-        //all neighbouring territories get reward since they are one territory away from a transition
-        neighbors.forEach(neighborId -> {
-          double toAdd = territoryRewards.get(neighborId) != null ? territoryRewards.get(neighborId) : 0.d;
-          territoryRewards.put(neighborId,
-                toAdd + RewardFactors.TRANSITION_NEIGHBOR_REWARD_FACTOR);
-        });
-      }
-      int continentId = board.getTerritories().get(id).getContinentId();
-      if(occupiedContinents.containsKey(continentId)) {
-        rewardToGive += RewardFactors.CONTINENT_REWARD_FACTOR * contRewards.get(continentId);
-        int neighboringEnemyTerritories = board.neighboringEnemyTerritories(id).size();
-        if(neighboringEnemyTerritories > 0 && neighboringEnemyTerritories < 3) {
-          rewardToGive += RewardFactors.NEAR_ENEMY_REWARD_FACTOR;
-        }
-      }
-
-      if(game.getCurrentPlayer() == playerId && isLastAvailableOfEnemyContinent(game, id, continentId)) {
-        rewardToGive += RewardFactors.LAST_ON_ENEMY_CONTINENT_REWARD_FACTOR;
-      }
-      double toAdd = territoryRewards.get(id) != null ? territoryRewards.get(id) : 0.d;
-      territoryRewards.put(id, toAdd + rewardToGive);
-    });
-    return territoryRewards;
+    return occupiedContinents;
   }
 
-  private boolean isLastAvailableOfEnemyContinent(Risk game, int territoryId, int continentId) {
+  private boolean isLastEnemyOnContinent(Risk game, int territoryId) {
+    if(game.getBoard().getTerritories().get(territoryId).getOccupantPlayerId() == playerId)
+      return false;
+    Continent c = continents.get(game.getBoard().getTerritories().get(territoryId).getContinentId());
+    int seizedTerritories = 0;
+    for(RiskTerritory t : c.getTerritories()) {
+      if(t.getOccupantPlayerId() == playerId) {
+        seizedTerritories++;
+      }
+    }
+    return seizedTerritories + 1 == c.getTerritories().size();
+  }
+
+  private boolean isLastAvailableOfEnemyContinent(Risk game, int territoryId) {
     if(opponentIds.contains(game.getBoard().getTerritories().get(territoryId).getOccupantPlayerId()))
       return false;
-    Continent c = continents.get(continentId);
+    Continent c = continents.get(game.getBoard().getTerritories().get(territoryId).getContinentId());
     int seizedTerritories = 0;
     for(RiskTerritory t : c.getTerritories()) {
       if(opponentIds.contains(t.getOccupantPlayerId())) {
@@ -341,9 +387,9 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
       double reward = 0.d;
       if(continent.getTerritories().size() < 5) {
         //small continents are easier to fill => higher reward
-        reward += RewardFactors.SMALL_CONTINENT_REWARD_FACTOR;
+        reward += PlacingRewardFactors.SMALL_CONTINENT_REWARD_FACTOR;
       } else if(continent.getTerritories().size() >= 5) {
-        reward += RewardFactors.BIG_CONTINENT_REWARD_FACTOR;
+        reward += PlacingRewardFactors.BIG_CONTINENT_REWARD_FACTOR;
       }
       continent.setBaseReward(reward);
     });
@@ -355,8 +401,9 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
       if(occupiedContinents.containsKey(id)) {
         Double reward = continent.getBaseReward();
         //prioritize continents we already have some territories in
-        reward += RewardFactors.OCCUPIED_CONTINENT_REWARD_FACTOR +
-                occupiedContinents.get(id) * RewardFactors.OCCUPIED_CONTINENT_ADDITIONAL_FOR_EACH_TERRITORY_ALREADY_OCCUPIED_REWARD_FACTOR;
+        reward += PlacingRewardFactors.OCCUPIED_CONTINENT_REWARD_FACTOR +
+                occupiedContinents.get(id) * PlacingRewardFactors.OCCUPIED_CONTINENT_ADDITIONAL_FOR_EACH_TERRITORY_ALREADY_OCCUPIED_REWARD_FACTOR
+                * continent.getBaseReward();
         contRewards.put(id, reward);
       }
     });
