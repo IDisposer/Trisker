@@ -9,6 +9,7 @@ import at.ac.tuwien.ifs.sge.game.risk.board.RiskTerritory;
 import org.example.data.AttackRewardFactors;
 import org.example.data.Continent;
 import org.example.data.PlacingRewardFactors;
+import org.example.data.RiskActionIdentifier;
 import org.example.general.RiskState;
 import org.example.log.EventLogService;
 import org.example.mcts.UCBLogic;
@@ -155,29 +156,149 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
   private double startRandomSimulation2(UCBNode node) {
     Double points = 0.d;
     Risk game = new Risk(node.getState());
+    Risk gameBefore = game;
     game = (Risk) game.doAction(node.getRiskAction());
-    int targetId, cnt = 0;
-    HashMap<Integer, Double> territoryRewards;
+    int cnt = 0;
     while(!game.isGameOver() && !shouldStopComputation() && cnt < TOTAL_RUNS_PER_ROUND / proportion) { //RiskState.isInitialPlacingPhase(game.getBoard())
       cnt++;
-      if(game.getCurrentPlayer() != playerId) {
+      if(game.getPreviousActionRecord().getPlayer() == playerId) {
         opponentIds.add(game.getCurrentPlayer());
-        //if the current player is the enemy, the previous action was taken by us (since there is only one opponent)
-        targetId = getTargetOfAction(game.getPreviousAction());
-        if(targetId >= 0) {
-          territoryRewards = RiskState.isInitialPlacingPhase(game.getBoard()) ? distributeTerritoryRewards((Risk) game.getGame(playerId)) : distributeTerritoryRewardsAttack((Risk) game.getGame(playerId));
-          points += territoryRewards.get(targetId);
-        } else if (targetId == -1) {
-          points += getRewardForCasualties(game.getPreviousAction());
-        }
+        points += calculateRewardForPreviousAction(game, gameBefore);
       }
       Set<RiskAction> actions = game.getPossibleActions();
       RiskAction action = actions.stream()
               .skip(random.nextInt(actions.size())).findFirst().get();
+      gameBefore = (Risk) game.getGame(playerId);
       game = (Risk) game.doAction(action);
     }
     return game.isGameOver() && game.getBoard().isPlayerStillAlive(playerId) ?
             5000 : !game.isGameOver() ? points / cnt * 10 : -1000;//calculateTotalRewardsOfPlayerMinusOpponentsRewards(playerId, game);
+  }
+
+  private double calculateRewardForPreviousAction(Risk gameAfter, Risk gameBefore) {
+    double reward = 0.d;
+    int targetId = getTargetOfAction(gameAfter.getPreviousAction());
+    int initId = gameAfter.getPreviousAction().attackingId();
+    if(targetId >= 0) {
+      HashMap<Integer, Double> territoryRewards = RiskState.isInitialPlacingPhase(gameAfter.getBoard()) ? distributeTerritoryRewards((Risk) gameAfter.getGame(playerId)) : distributeTerritoryRewardsAttack((Risk) gameAfter.getGame(playerId));
+      if(RiskState.isInitialPlacingPhase(gameAfter.getBoard())) {
+        reward += territoryRewards.get(targetId);
+      } else if(isTerritoryOfEnemy(gameBefore, targetId)) {
+        //we are attacking
+        reward += getRewardForAttack(gameBefore, initId, targetId);
+        if(isTerritoryOfEnemy(gameAfter, targetId)) {
+          //give reward for winning a territory based on what that territory gives
+          reward += territoryRewards.get(targetId);
+        }
+      } else if(initId == -1) {
+        //we are reinforcing
+        reward += getRewardForReinforcing(gameBefore.getBoard().getTerritoryTroops(targetId),
+                gameAfter.getBoard().getTerritoryTroops(targetId),
+                getTotalTroopsOfNeighbouringEnemies(gameAfter,
+                        new ArrayList<>(gameAfter.getBoard().neighboringEnemyTerritories(targetId))));
+      } else {
+        //we are fortifying
+        reward += getRewardForFortifying(gameAfter, initId, targetId);
+      }
+      /*
+      Set<Integer> targetNeighbors = gameAfter.getBoard().neighboringTerritories(targetId);
+      List<Integer> tnList = new ArrayList<>(targetNeighbors);
+      */
+    } else if (targetId == -1) {
+      reward += getRewardForCasualties(gameAfter.getPreviousAction());
+    }
+    return reward;
+  }
+
+  /**
+   * Groups actions with similar sources and targets into one action with the highest value between them.
+   * @param actions the actions to reduce
+   * @return the reduced actions
+   */
+  private Set<RiskAction> groupActions(Set<RiskAction> actions) {
+    HashMap<RiskActionIdentifier, RiskAction> actionsMap = new HashMap<>();
+    RiskActionIdentifier rai;
+    for(RiskAction action : actions) {
+      rai = new RiskActionIdentifier(action.attackingId(), action.defendingId());
+      if(actionsMap.containsKey(rai)) {
+        actionsMap.put(rai, actionsMap.get(rai).troops() > action.troops() ? actionsMap.get(rai) : action);
+      } else {
+        actionsMap.put(rai, action);
+      }
+    }
+    return new HashSet<>(actionsMap.values());
+  }
+
+  private int calculateDistanceToClosestEnemyTerritory(Risk game, int territoryId, Set<Integer> excluding) {
+    if(!game.getBoard().neighboringEnemyTerritories(territoryId).isEmpty()) {
+      return 1;
+    }
+    List<Integer> toCheck = game.getBoard().neighboringFriendlyTerritories(territoryId).stream().filter(x -> !excluding.contains(x)).collect(Collectors.toList());
+    excluding.add(territoryId);
+    excluding.addAll(toCheck);
+    int distance;
+    int best = 10000000;  //with exclusions longest path is 42 so this should always be worse than the worst real solution
+    for(Integer id : toCheck) {
+      distance = calculateDistanceToClosestEnemyTerritory(game, id, excluding);
+      if(distance == 1)
+        return 2;
+      if(distance < best) {
+        best = distance;
+      }
+    }
+    return best + 1;
+  }
+
+  private int getTotalTroopsOfNeighbouringEnemies(Risk game, List<Integer> neighbouringEnemyList) {
+    int total = 0;
+    Map<Integer, RiskTerritory> territories = game.getBoard().getTerritories();
+    for(Integer id : neighbouringEnemyList) {
+      total += territories.get(id).getTroops();
+    }
+    return total;
+  }
+
+  private boolean isTerritoryOfEnemy(Risk game, int territoryId) {
+    return game.getBoard().getTerritories().entrySet().stream().filter( x -> opponentIds.contains(x.getValue().getOccupantPlayerId())).collect(Collectors.toSet()).contains(game.getBoard().getTerritories().get(territoryId));
+  }
+
+  private double getRewardForFortifying(Risk game, int initId, int targetId) {
+    if(calculateDistanceToClosestEnemyTerritory(game, targetId, new HashSet<>()) - calculateDistanceToClosestEnemyTerritory(game, initId, new HashSet<>()) < 0) {
+      return AttackRewardFactors.FORTIFIED_TERRITORY_CLOSER_TO_ENEMY;
+    } else {
+      return AttackRewardFactors.FORTIFIED_TERRITORY_NOT_CLOSER_TO_ENEMY;
+    }
+  }
+
+  private double getRewardForReinforcing(int troopsBefore, int troopsAfter, int totalEnemyTroops) {
+    if(totalEnemyTroops == 0)
+      return AttackRewardFactors.REINFORCED_TERRITORY_WITHOUT_ENEMY_NEARBY;
+    int differenceAfter = totalEnemyTroops - troopsAfter;
+    int differenceBefore = totalEnemyTroops - troopsBefore;
+    double reward = 0.d;
+    if(differenceBefore <= 0) {
+      //same or less troops than enemy
+      reward += AttackRewardFactors.REINFORCED_TERRITORY_WITH_MORE_ENEMY_TROOPS_NEARBY;
+      if(differenceAfter > 0) {
+        //after reinforcing we have more troops than the nearby enemy territories combined
+        reward += AttackRewardFactors.REINFORCED_TERRITORY_AND_HAS_MORE_TROOPS_THAN_ENEMY_AFTER;
+      }
+    }
+    return reward;
+  }
+
+  private double getRewardForAttack(Risk game, int attackingId, int defendingId) {
+    Map<Integer, RiskTerritory> territories = game.getBoard().getTerritories();
+    int troopDifference = territories.get(defendingId).getTroops() - territories.get(attackingId).getTroops();
+    if (troopDifference <= 0) {
+      return AttackRewardFactors.LESS_TROOPS_FOR_ATTACK;
+    } else if (troopDifference == 1) {
+      return AttackRewardFactors.ONE_MORE_UNIT_FOR_ATTACK;
+    } else if (troopDifference == 2){
+      return AttackRewardFactors.TWO_MORE_UNITS_FOR_ATTACK;
+    } else {
+      return AttackRewardFactors.THREE_OR_MORE_UNITS_FOR_ATTACK;
+    }
   }
 
   private double getRewardForCasualties(RiskAction action) {
