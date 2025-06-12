@@ -2,6 +2,7 @@ package org.example;
 
 import at.ac.tuwien.ifs.sge.agent.*;
 import at.ac.tuwien.ifs.sge.engine.Logger;
+import at.ac.tuwien.ifs.sge.game.Game;
 import at.ac.tuwien.ifs.sge.game.risk.board.Risk;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskAction;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskBoard;
@@ -303,7 +304,7 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
   }
 
   private double getRewardForFortifying(Risk game, int initId, int targetId) {
-    if(calculateDistanceToClosestEnemyTerritory(game, targetId) - calculateDistanceToClosestEnemyTerritory(game, initId) < 0) {
+    if(isNewTerritoryCloserToEnemy(game, initId, targetId)) {
       return AttackRewardFactors.FORTIFIED_TERRITORY_CLOSER_TO_ENEMY;
     } else {
       return AttackRewardFactors.FORTIFIED_TERRITORY_NOT_CLOSER_TO_ENEMY;
@@ -351,10 +352,8 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
 
   private double getRewardForOccupy(Risk gameBefore, Risk gameAfter, RiskAction action) {
     double rewards = 0;
-
-    RiskAction attackAction = gameAfter.getActionRecords().get(gameAfter.getActionRecords().size() - 3).getAction();
-    int targetId = getTargetOfAction(attackAction);
-    int attacking = attackAction.attackingId();
+    int targetId = getTargetOfAction(gameBefore.getActionRecords().get(gameBefore.getActionRecords().size()-2).getAction());
+    int attacking = getTargetOfAction(gameBefore.getActionRecords().get(gameBefore.getActionRecords().size()-2).getAction());
     int placedTroops = action.troops();
 
     // If territory is closer to enemy
