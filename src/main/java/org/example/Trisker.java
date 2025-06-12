@@ -351,8 +351,10 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
 
   private double getRewardForOccupy(Risk gameBefore, Risk gameAfter, RiskAction action) {
     double rewards = 0;
-    int targetId = getTargetOfAction(action);
-    int attacking = gameBefore.getPreviousAction().attackingId();
+
+    RiskAction attackAction = gameAfter.getActionRecords().get(gameAfter.getActionRecords().size() - 3).getAction();
+    int targetId = getTargetOfAction(attackAction);
+    int attacking = attackAction.attackingId();
     int placedTroops = action.troops();
 
     // If territory is closer to enemy
