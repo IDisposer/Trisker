@@ -18,6 +18,7 @@ import org.example.mcts.UCBNode;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -73,7 +74,7 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
       super.setTimers(computationTime, timeUnit);
       if(!game.isGameOver()) {  // RiskState.isInitialPlacingPhase(game.getBoard())
         UCBNode root = startMCSTree(game);
-        UCBLogic.expandAll(root, game.getPossibleActions());
+        UCBLogic.expandAll(root, getActions(game));
         proportion = root.getChildren().size();
         UCBNode node = root;
         while(!shouldStopComputation()) {
@@ -110,6 +111,9 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
             bestAction, UCBLogic.calculateUCB(bestNode),
             frontend.getRiskAction(), frontend.getUcbValue()
         ));
+        if(bestNode.getRiskAction().selected() >= 0 && isTerritoryOfEnemy(bestNode.getState(), bestNode.getRiskAction().selected())) {
+          log.warn("Attacked: " + bestNode.getRiskAction() + "| against = " + bestNode.getState().getBoard().getTerritories().get(bestNode.getRiskAction().selected()).getTroops());
+        }
         log.warn("Best one Taken: ");
         log.warn(bestNode.getRiskAction() + " with ucbscore: "
                 + UCBLogic.calculateUCB(bestNode) + " t: " + bestNode.getTotal() + " v: " + bestNode.getVisits());
@@ -122,7 +126,7 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
         return bestAction;
       } else {
         System.exit(1);
-        return List.copyOf(game.getPossibleActions()).get(0);
+        return List.copyOf(getActions(game)).get(0);
       }
     } catch (Exception ex) {
       ex.printStackTrace();
@@ -138,13 +142,20 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     return startRandomSimulation2(node);
   }
 
+  private Set<RiskAction> getActions(Risk game) {
+    if(!RiskState.isInitialPlacingPhase(game.getBoard()))
+      return groupActions(game.getPossibleActions());
+    else
+      return game.getPossibleActions();
+  }
+
   private double startRandomSimulation(UCBNode node) {
     Risk game = new Risk(node.getState());
     game = (Risk) game.doAction(node.getRiskAction());
     int cnt = 0;
     while(!game.isGameOver() && !shouldStopComputation() && cnt < TOTAL_RUNS_PER_ROUND / proportion) { //RiskState.isInitialPlacingPhase(game.getBoard())
-      RiskAction action = game.getPossibleActions().stream()
-              .skip(random.nextInt(game.getPossibleActions().size())).findFirst().get();
+      RiskAction action = getActions(game).stream()
+              .skip(random.nextInt(getActions(game).size())).findFirst().get();
       //log.warn(action.toString());
       game = (Risk) game.doAction(action);
       if(game.getCurrentPlayer() != playerId)
@@ -157,7 +168,7 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
   }
 
   private double startRandomSimulation2(UCBNode node) {
-    Double points = 0.d;
+    double points = 0.d;
     Risk game = new Risk(node.getState());
     Risk gameBefore = game;
     game = (Risk) game.doAction(node.getRiskAction());
@@ -166,16 +177,16 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
       cnt++;
       if(game.getPreviousActionRecord().getPlayer() == playerId) {
         opponentIds.add(game.getCurrentPlayer());
-        points += calculateRewardForPreviousAction(game, gameBefore);
+        points += calculateRewardForPreviousAction(game, gameBefore) / cnt * 10;
       }
-      Set<RiskAction> actions = game.getPossibleActions();
+      Set<RiskAction> actions = getActions(game);
       RiskAction action = actions.stream()
               .skip(random.nextInt(actions.size())).findFirst().get();
       gameBefore = (Risk) game.getGame(playerId);
       game = (Risk) game.doAction(action);
     }
     return game.isGameOver() && game.getBoard().isPlayerStillAlive(playerId) ?
-            5000 : !game.isGameOver() ? points / cnt * 10 : -1000;//calculateTotalRewardsOfPlayerMinusOpponentsRewards(playerId, game);
+            5000 : !game.isGameOver() ? points : -1000;//calculateTotalRewardsOfPlayerMinusOpponentsRewards(playerId, game);
   }
 
   private double calculateRewardForPreviousAction(Risk gameAfter, Risk gameBefore) {
@@ -221,7 +232,7 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
   private Set<RiskAction> groupActions(Set<RiskAction> actions) {
     HashMap<RiskActionIdentifier, RiskAction> actionsMap = new HashMap<>();
     RiskActionIdentifier rai;
-    for(RiskAction action : actions) {
+    for(RiskAction action : actions) {  //add the actions with the biggest values
       rai = new RiskActionIdentifier(action.attackingId(), action.defendingId());
       if(actionsMap.containsKey(rai)) {
         actionsMap.put(rai, actionsMap.get(rai).troops() > action.troops() ? actionsMap.get(rai) : action);
@@ -229,7 +240,15 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
         actionsMap.put(rai, action);
       }
     }
-    return new HashSet<>(actionsMap.values());
+    Set<RiskAction> result = new HashSet<>();
+    for(RiskAction action : actions) {   //add the actions with half of the biggest value (rounded down because int)
+      rai = new RiskActionIdentifier(action.attackingId(), action.defendingId());
+      if(action.troops() == actionsMap.get(rai).troops() / 2) {
+        result.add(action);
+      }
+    }
+    result.addAll(actionsMap.values());
+    return result;
   }
 
   private int calculateDistanceToClosestEnemyTerritory(Risk game, int territoryId) {
@@ -261,7 +280,7 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     return -1;
   }
 
-  private int getTotalTroopsOfNeighbouringEnemies(Risk game, List<Integer> neighbouringEnemyList) {
+  private int getTotalTroopsOfNeighbouringEnemies(Risk game, Collection<Integer> neighbouringEnemyList) {
     int total = 0;
     Map<Integer, RiskTerritory> territories = game.getBoard().getTerritories();
     for(Integer id : neighbouringEnemyList) {
@@ -271,7 +290,8 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
   }
 
   private boolean isTerritoryOfEnemy(Risk game, int territoryId) {
-    return game.getBoard().getTerritories().entrySet().stream().filter( x -> opponentIds.contains(x.getValue().getOccupantPlayerId())).collect(Collectors.toSet()).contains(game.getBoard().getTerritories().get(territoryId));
+    int id = game.getBoard().getTerritories().get(territoryId).getOccupantPlayerId();
+    return id != playerId && id != -1;
   }
 
   private double getRewardForFortifying(Risk game, int initId, int targetId) {
@@ -301,16 +321,19 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
 
   private double getRewardForAttack(Risk game, int attackingId, int defendingId) {
     Map<Integer, RiskTerritory> territories = game.getBoard().getTerritories();
-    int troopDifference = territories.get(defendingId).getTroops() - territories.get(attackingId).getTroops();
+    int troopDifference = territories.get(attackingId).getTroops() - territories.get(defendingId).getTroops();
+    //log.warn("Troops difference: " + troopDifference);
     if (troopDifference <= 0) {
+      //log.warn(">>>>>>>>>>>>>>>>>>ATTACKED WITH LESS TROOPS!<<<<<<<<<<<<<<<<<<");
       return AttackRewardFactors.LESS_TROOPS_FOR_ATTACK;
-    } else if (troopDifference == 1) {
-      return AttackRewardFactors.ONE_MORE_UNIT_FOR_ATTACK;
-    } else if (troopDifference == 2){
-      return AttackRewardFactors.TWO_MORE_UNITS_FOR_ATTACK;
-    } else {
-      return AttackRewardFactors.THREE_OR_MORE_UNITS_FOR_ATTACK;
     }
+    if (troopDifference == 1) {
+      return AttackRewardFactors.ONE_MORE_UNIT_FOR_ATTACK;
+    }
+    if (troopDifference == 2){
+      return AttackRewardFactors.TWO_MORE_UNITS_FOR_ATTACK;
+    }
+    return AttackRewardFactors.THREE_OR_MORE_UNITS_FOR_ATTACK;
   }
 
   private double getRewardForCasualties(RiskAction action) {
