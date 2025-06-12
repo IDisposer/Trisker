@@ -17,9 +17,12 @@ import org.example.mcts.UCBNode;
 
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.List;
@@ -229,24 +232,33 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     return new HashSet<>(actionsMap.values());
   }
 
-  private int calculateDistanceToClosestEnemyTerritory(Risk game, int territoryId, Set<Integer> excluding) {
-    if(!game.getBoard().neighboringEnemyTerritories(territoryId).isEmpty()) {
-      return 1;
-    }
-    List<Integer> toCheck = game.getBoard().neighboringFriendlyTerritories(territoryId).stream().filter(x -> !excluding.contains(x)).collect(Collectors.toList());
-    excluding.add(territoryId);
-    excluding.addAll(toCheck);
-    int distance;
-    int best = 10000000;  //with exclusions longest path is 42 so this should always be worse than the worst real solution
-    for(Integer id : toCheck) {
-      distance = calculateDistanceToClosestEnemyTerritory(game, id, excluding);
-      if(distance == 1)
-        return 2;
-      if(distance < best) {
-        best = distance;
+  private int calculateDistanceToClosestEnemyTerritory(Risk game, int territoryId) {
+    Queue<Integer> q = new LinkedList<>();
+    int nrOfTerritories = game.getBoard().getTerritories().size();
+    boolean[] visited = new boolean[nrOfTerritories];
+    int[] distance = new int[nrOfTerritories];
+
+    visited[territoryId] = true;
+    distance[territoryId] = 0;
+    q.add(territoryId);
+
+    while (!q.isEmpty()) {
+      int curr = q.poll();
+
+      for (int neighbour : game.getBoard().neighboringTerritories(curr)) {
+        if (!visited[neighbour]) {
+          // Check if enemy territory
+          if (game.getBoard().getTerritories().get(territoryId).getOccupantPlayerId() != playerId) {
+            return distance[neighbour] + 1;
+          }
+
+          visited[neighbour] = true;
+          q.add(neighbour);
+          distance[neighbour] = distance[curr] + 1;
+        }
       }
     }
-    return best + 1;
+    return -1;
   }
 
   private int getTotalTroopsOfNeighbouringEnemies(Risk game, List<Integer> neighbouringEnemyList) {
@@ -263,7 +275,7 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
   }
 
   private double getRewardForFortifying(Risk game, int initId, int targetId) {
-    if(calculateDistanceToClosestEnemyTerritory(game, targetId, new HashSet<>()) - calculateDistanceToClosestEnemyTerritory(game, initId, new HashSet<>()) < 0) {
+    if(calculateDistanceToClosestEnemyTerritory(game, targetId) - calculateDistanceToClosestEnemyTerritory(game, initId) < 0) {
       return AttackRewardFactors.FORTIFIED_TERRITORY_CLOSER_TO_ENEMY;
     } else {
       return AttackRewardFactors.FORTIFIED_TERRITORY_NOT_CLOSER_TO_ENEMY;
