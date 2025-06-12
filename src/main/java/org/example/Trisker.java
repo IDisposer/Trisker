@@ -220,6 +220,10 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
       */
     } else if (targetId == -1) {
       reward += getRewardForCasualties(gameAfter.getPreviousAction());
+    } else if (targetId == -2) {
+      reward += getRewardForOccupy(gameBefore, gameAfter, gameAfter.getPreviousAction());
+    } else if (targetId == -3) {
+      reward += getRewardForCards(gameBefore, gameAfter, gameAfter.getPreviousAction());
     }
     return reward;
   }
@@ -289,6 +293,10 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     return total;
   }
 
+  private int getTotalTroopsOfNeighbouringEnemies(Risk game, int territoryId) {
+    return getTotalTroopsOfNeighbouringEnemies(game, game.getBoard().neighboringEnemyTerritories(territoryId));
+  }
+
   private boolean isTerritoryOfEnemy(Risk game, int territoryId) {
     int id = game.getBoard().getTerritories().get(territoryId).getOccupantPlayerId();
     return id != playerId && id != -1;
@@ -339,6 +347,42 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
   private double getRewardForCasualties(RiskAction action) {
     return action.attackerCasualties() - action.defenderCasualties() < 0 ?
             AttackRewardFactors.LESS_CASUALTIES_REWARD_FACTOR : AttackRewardFactors.MORE_CASUALTIES_REWARD_FACTOR;
+  }
+
+  private double getRewardForOccupy(Risk gameBefore, Risk gameAfter, RiskAction action) {
+    double rewards = 0;
+    int targetId = getTargetOfAction(action);
+    int attacking = gameBefore.getPreviousAction().attackingId();
+    int placedTroops = action.troops();
+
+    // If territory is closer to enemy
+    if (isNewTerritoryCloserToEnemy(gameAfter, attacking, targetId) && placedTroops > 1) {
+      rewards += AttackRewardFactors.OCCUPY_INITIAL_TERRITORY_CLOSER_TO_ENEMY;
+    }
+
+    int availableTroops = gameAfter.getGame().getBoard().getTerritoryTroops(attacking) + placedTroops - 1;
+    int enemyTroopsSurroundingTarget = getTotalTroopsOfNeighbouringEnemies(gameAfter, targetId);
+    int enemyTroopsSurroundingSource = getTotalTroopsOfNeighbouringEnemies(gameAfter, attacking);
+
+    // To nothing, because any decision could be wrong
+    if (availableTroops < enemyTroopsSurroundingSource && availableTroops < enemyTroopsSurroundingTarget) {
+      return rewards;
+    }
+
+    // Occupy has two bad pairings
+    if (availableTroops - placedTroops < enemyTroopsSurroundingSource && placedTroops < enemyTroopsSurroundingTarget) {
+      rewards += AttackRewardFactors.OCCUPY_BOTH_TERRITORIES_HAVE_TOO_LESS_TROOPS;
+    }
+
+    return rewards;
+  }
+
+  private double getRewardForCards(Risk gameBefore, Risk gameAfter, RiskAction previousAction) {
+    return AttackRewardFactors.CARD_PLAYED_REWARD_FACTOR;
+  }
+
+  private boolean isNewTerritoryCloserToEnemy(Risk game, int initialT, int newT) {
+    return calculateDistanceToClosestEnemyTerritory(game, newT) - calculateDistanceToClosestEnemyTerritory(game, initialT) < 0;
   }
 
   private int getTargetOfAction(RiskAction action) {
