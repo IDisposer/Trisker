@@ -102,10 +102,10 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
             node = UCBLogic.selectBest(node);
           }
         }
-        log.warn("Best one Taken: ");
+        //log.warn("Best one Taken: ");
         UCBNode bestNode = UCBLogic.selectBest(root);
         RiskAction bestAction = bestNode.getRiskAction();
-
+        /*
         UCBNode frontend = root.getChildren().stream().max((o1, o2) -> o1.getUcbValue() < o2.getUcbValue() ? -1 : 1).get();
 
         log.warn(String.format("Backend: %s (%f), Frontend: %s (%f)",
@@ -124,6 +124,7 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
                   + UCBLogic.calculateUCB(child)+ " t: " + child.getTotal() + " v: " + child.getVisits());
         }
         EventLogService.logBoard("OWN", (Risk) game.doAction(bestAction).getGame());
+        */
         return bestAction;
       } else {
         System.exit(1);
@@ -145,9 +146,71 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
 
   private Set<RiskAction> getActions(Risk game) {
     if(!RiskState.isInitialPlacingPhase(game.getBoard()))
-      return groupActions(game.getPossibleActions());
-    else
-      return game.getPossibleActions();
+      return pruneBadEndphase(game,
+              pruneBadReinforcements(game,
+                      pruneBadAttacks(game,
+                              groupActions(game.getPossibleActions()))));
+    return game.getPossibleActions();
+  }
+
+  /**
+   * Remove actions from the given actions that are attacks and
+   * have troops that are less than or equal to the defender's troops.
+   * Does not permute the original actions.
+   * @param game the gamestate before the actions are taken as an instance of {@link Risk}
+   * @param actions the actions to remove bad attacks from
+   * @return the given actions minus the removed actions
+   */
+  private Set<RiskAction> pruneBadAttacks(Risk game, Set<RiskAction> actions) {
+    int targetId;
+    Set<RiskAction> goodActions = new HashSet<>();
+    for(RiskAction action : actions) {
+      targetId = getTargetOfAction(action);
+      if(!isTerritoryOfEnemy(game, targetId)
+              || game.getBoard().getTerritories().get(targetId).getTroops() < action.troops()) {
+        //we are NOT attacking with less than or equal troops to the defender
+        goodActions.add(action);
+      }
+    }
+    return goodActions;
+  }
+
+  /**
+   * Returns all actions minus reinforcements that don't reinforce a territory that is next to an enemy.
+   * If no reinforcements have nearby enemies all actions are returned.
+   * @param game
+   * @param actions
+   * @return
+   */
+  private Set<RiskAction> pruneBadReinforcements(Risk game, Set<RiskAction> actions) {
+    int targetId;
+    Set<RiskAction> goodActions = new HashSet<>();
+    for(RiskAction action : actions) {
+      targetId = getTargetOfAction(action);
+      if (!(targetId >= 0 && action.attackingId() == -1) || !game.getBoard().neighboringEnemyTerritories(targetId).isEmpty()) {
+        goodActions.add(action);
+      }
+    }
+    return goodActions.isEmpty() ? actions : goodActions;
+  }
+
+  private Set<RiskAction> pruneBadEndphase(Risk game, Set<RiskAction> actions) {
+    Set<RiskAction> goodActions = new HashSet<>(actions);
+    RiskAction endPhase = null;
+    boolean hasGoodActionLeft = false;
+    for(RiskAction action : actions) {
+      if (action.attackingId() == -2 && action.selected() == -4 && action.troops() == -8) {
+        endPhase = action;
+      }
+      if(isTerritoryOfEnemy(game, action.selected())) {
+        hasGoodActionLeft = true;
+      }
+      if(hasGoodActionLeft && endPhase != null) {
+        goodActions.remove(endPhase);
+        return goodActions;
+      }
+    }
+    return goodActions;
   }
 
   private double startRandomSimulation(UCBNode node) {
@@ -180,7 +243,7 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
         opponentIds.add(game.getCurrentPlayer());
         points += calculateRewardForPreviousAction(game, gameBefore) / cnt * 10;
       }
-      Set<RiskAction> actions = getActions(game);
+      Set<RiskAction> actions = game.getCurrentPlayer() != playerId ? game.getPossibleActions() : getActions(game);
       RiskAction action = actions.stream()
               .skip(random.nextInt(actions.size())).findFirst().get();
       gameBefore = (Risk) game.getGame(playerId);
@@ -299,6 +362,8 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
   }
 
   private boolean isTerritoryOfEnemy(Risk game, int territoryId) {
+    if(territoryId < 0) //territory id is a special id
+      return false;
     int id = game.getBoard().getTerritories().get(territoryId).getOccupantPlayerId();
     return id != playerId && id != -1;
   }

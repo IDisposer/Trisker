@@ -21,7 +21,7 @@ public class AttackRewardFactors {
   public static double REINFORCED_TERRITORY_WITHOUT_ENEMY_NEARBY = -6;
   public static double REINFORCED_TERRITORY_WITH_MORE_ENEMY_TROOPS_NEARBY = 9;
   public static double REINFORCED_TERRITORY_AND_HAS_MORE_TROOPS_THAN_ENEMY_AFTER = 2;
-  public static double FORTIFIED_TERRITORY_CLOSER_TO_ENEMY = 10;
+  public static double FORTIFIED_TERRITORY_CLOSER_TO_ENEMY = 20;
   public static double FORTIFIED_TERRITORY_NOT_CLOSER_TO_ENEMY = -20;
   public static double OCCUPY_INITIAL_TERRITORY_CLOSER_TO_ENEMY = -3;
   public static double OCCUPY_BOTH_TERRITORIES_HAVE_TOO_LESS_TROOPS = -5;

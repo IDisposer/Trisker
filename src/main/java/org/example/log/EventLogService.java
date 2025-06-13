@@ -19,7 +19,7 @@ import java.util.Map;
 public class EventLogService {
 
   private static final Path EVENT_LOG_FILE = Path.of("./event-logs.log");
-  private static final boolean ENABLED = true;
+  private static final boolean ENABLED = false;
   private static final int TREE_EVENT_LIMIT_PER_BOARD = 100;
   private static final int TREE_START = 40;
   private static final int TREE_END = 42;

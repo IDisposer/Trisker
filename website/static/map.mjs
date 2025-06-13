@@ -206,7 +206,7 @@ function printBoard(board2d, playerData, changes) {
 
 function insertTerritoryString(board2d, id, data) {
     const {x, y} = territoryCoordinates[id];
-    const infoString = `[${data.occupantPlayerId}:${data.troops}]`;
+    const infoString = `${id}[${data.occupantPlayerId}:${data.troops}]`;
 
     let c = 1;
     let firstIndex = x;
