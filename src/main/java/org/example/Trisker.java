@@ -1,27 +1,27 @@
 package org.example;
 
-import at.ac.tuwien.ifs.sge.agent.*;
+import at.ac.tuwien.ifs.sge.agent.AbstractGameAgent;
+import at.ac.tuwien.ifs.sge.agent.GameAgent;
 import at.ac.tuwien.ifs.sge.engine.Logger;
 import at.ac.tuwien.ifs.sge.game.risk.board.Risk;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskAction;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskBoard;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskTerritory;
-import org.example.data.RewardFactors;
 import org.example.data.Continent;
-import org.example.util.RiskActionPruner;
+import org.example.data.RewardFactors;
 import org.example.log.EventLogService;
 import org.example.mcts.UCBLogic;
 import org.example.mcts.UCBNode;
+import org.example.util.RiskActionPruner;
 import org.example.util.RiskUtils;
-
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.List;
 import java.util.stream.Collectors;
 
 //Run command for the game engine:

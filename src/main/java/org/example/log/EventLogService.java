@@ -6,7 +6,6 @@ import at.ac.tuwien.ifs.sge.game.risk.board.RiskTerritory;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
-import org.example.mcts.TreeNode;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
