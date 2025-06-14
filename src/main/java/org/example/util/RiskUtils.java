@@ -61,8 +61,8 @@ public class RiskUtils {
       for (int neighbour : game.getBoard().neighboringTerritories(curr)) {
         if (!visited[neighbour]) {
           // Check if enemy territory
-          if (game.getBoard().getTerritories().get(territoryId).getOccupantPlayerId() != game.getCurrentPlayer()) {
-            return distance[neighbour] + 1;
+          if (game.getBoard().getTerritories().get(neighbour).getOccupantPlayerId() != game.getCurrentPlayer()) {
+            return distance[curr] + 1;
           }
 
           visited[neighbour] = true;

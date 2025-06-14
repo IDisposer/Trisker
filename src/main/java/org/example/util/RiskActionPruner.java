@@ -88,7 +88,11 @@ public class RiskActionPruner {
     Set<RiskAction> prunedActions = new HashSet<>(actions);
     int[] distances = RiskUtils.calculateDistanceMapToClosestEnemyTerritories(game);
     for (RiskAction action : actions) {
-      if (!action.equals(RiskAction.endPhase()) && distances[action.fortifyingId()] > distances[action.fortifiedId()]) {
+      if (action.equals(RiskAction.endPhase())) continue;
+
+      if (distances[action.fortifyingId()] <= distances[action.fortifiedId()]
+        || (distances[action.fortifyingId()] == 1 && distances[action.fortifiedId()] == 1)
+        || (game.getBoard().getTerritoryTroops(action.fortifyingId()) - 1 != action.troops())) {
         prunedActions.remove(action);
       }
     }
