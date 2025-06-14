@@ -137,7 +137,7 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
       prunedActions = pruneBadAttacks(game, prunedActions);
       prunedActions = pruneBadReinforcements(game, prunedActions);
       prunedActions = pruneBadEndphase(game, prunedActions);
-      prunedActions = pruneBadFortifies(game, prunedActions);
+      // prunedActions = pruneBadFortifies(game, prunedActions);
       return prunedActions;
     }
     return game.getPossibleActions();
@@ -210,22 +210,19 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
 
     Set<RiskAction> prunedActions = new HashSet<>(actions);
     int[] distances = calculateDistanceMapToClosestEnemyTerritories(game);
-    boolean foundGoodAction = false;
     for (RiskAction action : actions) {
       if (action.equals(RiskAction.endPhase())) continue;
 
-      if (distances[action.fortifyingId()] > distances[action.fortifiedId()]) {
-        foundGoodAction = true;
-        continue;
+      if (distances[action.fortifyingId()] < distances[action.fortifiedId()]) {
+        prunedActions.remove(action);
       }
-      prunedActions.remove(action);
     }
 
-    if (foundGoodAction) {
+    if (actions.size() < prunedActions.size()) {
       prunedActions.remove(RiskAction.endPhase());
-      return prunedActions;
     }
-    return actions;
+
+    return prunedActions;
   }
 
   private double startRandomSimulation(UCBNode node) {
