@@ -84,7 +84,7 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
             UCBLogic.backpropagate(node, value);
             node = root;
           } else if (node.getChildren().isEmpty()) {
-            UCBLogic.expandAll(node, node.getState().getPossibleActions());
+            UCBLogic.expandAll(node, getActions(node.getState()));
             proportion = node.getChildren().size();
             node = UCBLogic.selectBest(node);
             double value = startSimulation(node);
@@ -215,7 +215,7 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
         continue;
       }
 
-      if (distances[action.fortifyingId()] < distances[action.fortifiedId()]) {
+      if (distances[action.fortifyingId()] > distances[action.fortifiedId()]) {
         prunedActions.remove(action);
       }
     }
