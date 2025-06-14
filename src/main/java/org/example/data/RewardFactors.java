@@ -1,6 +1,6 @@
 package org.example.data;
 
-public class AttackRewardFactors {
+public class RewardFactors {
   public static double CONTINENT_REWARD_FACTOR = 1;
   public static double TRANSITION_REWARD_FACTOR = 0;
   public static double NEAR_ENEMY_REWARD_FACTOR = 0.00;

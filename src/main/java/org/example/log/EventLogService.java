@@ -112,6 +112,9 @@ public class EventLogService {
   }
 
   public static void log(String logString) {
+    if (!ENABLED) {
+      return;
+    }
     logString += System.lineSeparator();
     try {
       if (Files.notExists(EVENT_LOG_FILE)) {
@@ -124,6 +127,9 @@ public class EventLogService {
   }
 
   public static void reset() {
+    if (!ENABLED) {
+      return;
+    }
     try {
       Files.delete(EVENT_LOG_FILE);
     } catch (IOException e) {
@@ -132,6 +138,9 @@ public class EventLogService {
   }
 
   private static String serialize(Object object) {
+    if (!ENABLED) {
+      return null;
+    }
     try {
       return mapper.writeValueAsString(object);
     } catch (JsonProcessingException e) {
