@@ -1,5 +1,6 @@
 import { copy } from "./utils.mjs";
 const boardContainer = document.getElementById('map');
+const roundIndicator = document.getElementById('round-indicator');
 
 let boardData = null;;
 let territoryCoordinates = {};
@@ -21,6 +22,11 @@ export async function init() {
 
 export async function onEvent(event) {
     simulateMap(event);
+    updateRoundIndicator(event.round);
+}
+
+function updateRoundIndicator(round) {
+    roundIndicator.innerText = round + "";
 }
 
 function simulateMap(playerData) {

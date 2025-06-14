@@ -19,12 +19,8 @@ import java.util.Map;
 public class EventLogService {
 
   private static final Path EVENT_LOG_FILE = Path.of("./event-logs.log");
-  private static final boolean ENABLED = false;
-  private static final int TREE_EVENT_LIMIT_PER_BOARD = 100;
-  private static final int TREE_START = 40;
-  private static final int TREE_END = 42;
+  private static final boolean ENABLED = true;
   private static int boardCounter = 0;
-  private static int treeEventCounter = 0;
 
   private static final ObjectMapper mapper;
 
@@ -37,8 +33,7 @@ public class EventLogService {
   }
 
   public enum Type {
-    BOARD,
-    TREE // {Node: Id, N: 1, Children: [{Node: Id, N: 1 Children: []}]}
+    BOARD
   }
 
   private static class LogEntry {
@@ -67,6 +62,7 @@ public class EventLogService {
   private static class BoardLog {
     private Map<Integer, RiskTerritory> territoryMap = new HashMap<>();
     private String player;
+    private int round;
 
     public Map<Integer, RiskTerritory> getTerritoryMap() {
       return territoryMap;
@@ -86,6 +82,15 @@ public class EventLogService {
       this.player = type;
       return this;
     }
+
+    public int getRound() {
+      return round;
+    }
+
+    public BoardLog setRound(int round) {
+      this.round = round;
+      return this;
+    }
   }
 
   public static void logBoard(String player, Risk game) {
@@ -93,33 +98,15 @@ public class EventLogService {
       return;
     }
     boardCounter++;
-    treeEventCounter = 0;
 
     BoardLog boardLog = new BoardLog();
     boardLog.setTerritoryMap(game.getBoard().getTerritories());
     boardLog.setPlayer(player);
+    boardLog.setRound(boardCounter);
 
     LogEntry logEntry = new LogEntry();
     logEntry.setType(Type.BOARD);
     logEntry.setData(boardLog);
-
-    log(serialize(logEntry));
-  }
-
-  public static void logTree(TreeNode<?> root) {
-    if (!ENABLED) {
-      return;
-    }
-
-    if (boardCounter >= TREE_START || treeEventCounter == TREE_EVENT_LIMIT_PER_BOARD) {
-      return;
-    }
-
-    treeEventCounter++;
-
-    LogEntry logEntry = new LogEntry();
-    logEntry.setType(Type.TREE);
-    logEntry.setData(root);
 
     log(serialize(logEntry));
   }
@@ -150,5 +137,9 @@ public class EventLogService {
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  public static int getBoardCounter() {
+    return boardCounter;
   }
 }

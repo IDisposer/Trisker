@@ -7,6 +7,7 @@ import at.ac.tuwien.ifs.sge.game.risk.board.Risk;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskAction;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskBoard;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskTerritory;
+import at.ac.tuwien.ifs.sge.util.Util;
 import org.example.data.AttackRewardFactors;
 import org.example.data.Continent;
 import org.example.data.PlacingRewardFactors;
@@ -66,6 +67,7 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
                              TimeUnit timeUnit){
     try {
       EventLogService.logBoard("ENEMY", game);
+
       if(isFirstRound){
         isFirstRound = false;
         ownSetup(game);
@@ -81,37 +83,27 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
         while(!shouldStopComputation()) {
           if(node.getVisits() == 0 && node.getChildren().isEmpty()) {
             double value = startSimulation(node);
-            //log.warn(value);
+
             UCBLogic.backpropagate(node, value);
             node = root;
-
-            UCBLogic.calculateUCBRecursive(root);
-            EventLogService.logTree(root);
           } else if (node.getChildren().isEmpty()) {
             UCBLogic.expandAll(node, node.getState().getPossibleActions());
             proportion = node.getChildren().size();
             node = UCBLogic.selectBest(node);
             double value = startSimulation(node);
-            //log.warn(value);
+
             UCBLogic.backpropagate(node, value);
             node = root;
-
-            UCBLogic.calculateUCBRecursive(root);
-            EventLogService.logTree(root);
           } else {
             node = UCBLogic.selectBest(node);
           }
         }
-        //log.warn("Best one Taken: ");
         UCBNode bestNode = UCBLogic.selectBest(root);
         RiskAction bestAction = bestNode.getRiskAction();
-        /*
-        UCBNode frontend = root.getChildren().stream().max((o1, o2) -> o1.getUcbValue() < o2.getUcbValue() ? -1 : 1).get();
 
-        log.warn(String.format("Backend: %s (%f), Frontend: %s (%f)",
-            bestAction, UCBLogic.calculateUCB(bestNode),
-            frontend.getRiskAction(), frontend.getUcbValue()
-        ));
+        EventLogService.logBoard("OWN", (Risk) game.doAction(bestAction).getGame());
+        log.warn("BoardCounter: " + EventLogService.getBoardCounter());
+
         if(bestNode.getRiskAction().selected() >= 0 && isTerritoryOfEnemy(bestNode.getState(), bestNode.getRiskAction().selected())) {
           log.warn("Attacked: " + bestNode.getRiskAction() + "| against = " + bestNode.getState().getBoard().getTerritories().get(bestNode.getRiskAction().selected()).getTroops());
         }
@@ -123,8 +115,6 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
           log.warn(child.getRiskAction() + " with ucbscore: "
                   + UCBLogic.calculateUCB(child)+ " t: " + child.getTotal() + " v: " + child.getVisits());
         }
-        EventLogService.logBoard("OWN", (Risk) game.doAction(bestAction).getGame());
-        */
         return bestAction;
       } else {
         System.exit(1);
@@ -237,7 +227,7 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     Risk gameBefore = game;
     game = (Risk) game.doAction(node.getRiskAction());
     int cnt = 0;
-    while(!game.isGameOver() && !shouldStopComputation() && cnt < TOTAL_RUNS_PER_ROUND / proportion) { //RiskState.isInitialPlacingPhase(game.getBoard())
+    while(!game.isGameOver() && !shouldStopComputation() && cnt < 10) { //RiskState.isInitialPlacingPhase(game.getBoard())
       cnt++;
       if(game.getPreviousActionRecord().getPlayer() == playerId) {
         opponentIds.add(game.getCurrentPlayer());

@@ -13,9 +13,8 @@ public class UCBLogic {
     if(node.getVisits() == 0)
       return Double.MAX_VALUE;
 
-    double ucb = node.getTotal() + EXPLORATION_FACTOR
+    return node.getTotal() + EXPLORATION_FACTOR
             * Math.sqrt(Math.log(node.getParent().getVisits()) / node.getVisits());
-    return ucb;
   }
 
   public static void backpropagate(UCBNode node, double value) {
@@ -48,15 +47,5 @@ public class UCBLogic {
       }
     }
     return best;
-  }
-
-  /**
-   * LOGGING ONLY!!!
-   */
-  public static void calculateUCBRecursive(UCBNode node) {
-    node.getChildren().forEach((c -> {
-      c.setUcbValue(UCBLogic.calculateUCB(c));
-      calculateUCBRecursive(c);
-    }));
   }
 }

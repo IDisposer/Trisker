@@ -13,6 +13,17 @@ async function init() {
     await Tree.init();
     eventLogs = await (await fetch('/event-logs')).json();
     eventLogs = eventLogs.filter(x => x.type === 'BOARD');
+    currentEventIdx = extractEventIdxFromUrl();
+}
+
+function extractEventIdxFromUrl() {
+    let params = new URLSearchParams(document.location.search);
+    let idx = params.get("idx");
+    if (idx === null || idx === "") {
+        return idx = 0;
+    }
+    idx = parseInt(idx, 10) - 1; // -1 to align it with the round indicator starting from 1
+    return isNaN(idx) ? 0 : idx >= eventLogs.length ? eventLogs.length - 1 : idx;
 }
 
 async function start() {
@@ -40,6 +51,9 @@ function finishEventTypeOrJumpToNext() {
         case 'BOARD':
             simulateNextEvent();
             currentEventIdx+=20;
+            if (currentEventIdx >= eventLogs.length) {
+                currentEventIdx = eventLogs.length - 1;
+            }
             break;
         case 'TREE':
             if (eventLogs[currentEventIdx - 1].type === 'BOARD') {
