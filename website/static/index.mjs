@@ -23,7 +23,7 @@ function extractEventIdxFromUrl() {
         return idx = 0;
     }
     idx = parseInt(idx, 10) - 1; // -1 to align it with the round indicator starting from 1
-    return isNaN(idx) ? 0 : idx >= eventLogs.length ? eventLogs.length - 1 : idx;
+    return isNaN(idx) || idx < 0 ? 0 : idx >= eventLogs.length ? eventLogs.length - 1 : idx;
 }
 
 async function start() {

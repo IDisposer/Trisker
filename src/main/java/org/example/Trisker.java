@@ -2,12 +2,10 @@ package org.example;
 
 import at.ac.tuwien.ifs.sge.agent.*;
 import at.ac.tuwien.ifs.sge.engine.Logger;
-import at.ac.tuwien.ifs.sge.game.Game;
 import at.ac.tuwien.ifs.sge.game.risk.board.Risk;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskAction;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskBoard;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskTerritory;
-import at.ac.tuwien.ifs.sge.util.Util;
 import org.example.data.AttackRewardFactors;
 import org.example.data.Continent;
 import org.example.data.PlacingRewardFactors;
@@ -19,7 +17,6 @@ import org.example.mcts.UCBNode;
 
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -135,11 +132,14 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
   }
 
   private Set<RiskAction> getActions(Risk game) {
-    if(!RiskState.isInitialPlacingPhase(game.getBoard()))
-      return pruneBadEndphase(game,
-              pruneBadReinforcements(game,
-                      pruneBadAttacks(game,
-                              groupActions(game.getPossibleActions()))));
+    if(!RiskState.isInitialPlacingPhase(game.getBoard())) {
+      Set<RiskAction> prunedActions = groupActions(game.getPossibleActions());
+      prunedActions = pruneBadAttacks(game, prunedActions);
+      prunedActions = pruneBadReinforcements(game, prunedActions);
+      prunedActions = pruneBadEndphase(game, prunedActions);
+      prunedActions = pruneBadFortifies(game, prunedActions);
+      return prunedActions;
+    }
     return game.getPossibleActions();
   }
 
@@ -203,6 +203,30 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     return goodActions;
   }
 
+  private Set<RiskAction> pruneBadFortifies(Risk game, Set<RiskAction> actions) {
+    if (!game.getBoard().isFortifyPhase()) {
+      return actions;
+    }
+
+    Set<RiskAction> prunedActions = new HashSet<>(actions);
+    int[] distances = calculateDistanceMapToClosestEnemyTerritories(game);
+    boolean foundGoodAction = false;
+    for (RiskAction action : actions) {
+      if (action.equals(RiskAction.endPhase())) continue;
+
+      if (distances[action.fortifyingId()] <= distances[action.fortifiedId()]) {
+        prunedActions.remove(action);
+        foundGoodAction = true;
+      }
+    }
+
+    if (foundGoodAction) {
+      prunedActions.remove(RiskAction.endPhase());
+      return prunedActions;
+    }
+    return actions;
+  }
+
   private double startRandomSimulation(UCBNode node) {
     Risk game = new Risk(node.getState());
     game = (Risk) game.doAction(node.getRiskAction());
@@ -227,7 +251,7 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     Risk gameBefore = game;
     game = (Risk) game.doAction(node.getRiskAction());
     int cnt = 0;
-    while(!game.isGameOver() && !shouldStopComputation() && cnt < 10) { //RiskState.isInitialPlacingPhase(game.getBoard())
+    while(!game.isGameOver() && !shouldStopComputation() && cnt < TOTAL_RUNS_PER_ROUND / proportion) { //RiskState.isInitialPlacingPhase(game.getBoard())
       cnt++;
       if(game.getPreviousActionRecord().getPlayer() == playerId) {
         opponentIds.add(game.getCurrentPlayer());
@@ -336,6 +360,35 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
       }
     }
     return -1;
+  }
+
+  private int[] calculateDistanceMapToClosestEnemyTerritories(Risk game) {
+    Queue<Integer> q = new LinkedList<>();
+    int nrOfTerritories = game.getBoard().getTerritories().size();
+    boolean[] visited = new boolean[nrOfTerritories];
+    int[] distance = new int[nrOfTerritories];
+
+    // Add all enemy territories to the queue
+    for (Map.Entry<Integer, RiskTerritory> entry : game.getBoard().getTerritories().entrySet()) {
+      if (entry.getValue().getOccupantPlayerId() == playerId) continue;
+
+      visited[entry.getKey()] = true;
+      distance[entry.getKey()] = 0;
+      q.add(entry.getKey());
+    }
+
+    while (!q.isEmpty()) {
+      int curr = q.poll();
+
+      for (int neighbour : game.getBoard().neighboringTerritories(curr)) {
+        if (!visited[neighbour]) {
+          visited[neighbour] = true;
+          q.add(neighbour);
+          distance[neighbour] = distance[curr] + 1;
+        }
+      }
+    }
+    return distance;
   }
 
   private int getTotalTroopsOfNeighbouringEnemies(Risk game, Collection<Integer> neighbouringEnemyList) {
