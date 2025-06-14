@@ -17,6 +17,12 @@ import java.util.Set;
 
 public class RiskUtils {
 
+  private static int playerId = -1;
+
+  public static void initialize(int pId) {
+    playerId = pId;
+  }
+
   /**
    * Groups actions with similar sources and targets into two actions.
    * One with the highest value and one with half of the highest value.
@@ -61,7 +67,7 @@ public class RiskUtils {
       for (int neighbour : game.getBoard().neighboringTerritories(curr)) {
         if (!visited[neighbour]) {
           // Check if enemy territory
-          if (game.getBoard().getTerritories().get(neighbour).getOccupantPlayerId() != game.getCurrentPlayer()) {
+          if (game.getBoard().getTerritories().get(neighbour).getOccupantPlayerId() != playerId) {
             return distance[curr] + 1;
           }
 
@@ -82,7 +88,7 @@ public class RiskUtils {
 
     // Add all enemy territories to the queue
     for (Map.Entry<Integer, RiskTerritory> entry : game.getBoard().getTerritories().entrySet()) {
-      if (entry.getValue().getOccupantPlayerId() == game.getCurrentPlayer()) continue;
+      if (entry.getValue().getOccupantPlayerId() == playerId) continue;
 
       visited[entry.getKey()] = true;
       distance[entry.getKey()] = 0;
@@ -120,7 +126,7 @@ public class RiskUtils {
     if(territoryId < 0) //territory id is a special id
       return false;
     int id = game.getBoard().getTerritories().get(territoryId).getOccupantPlayerId();
-    return id != game.getCurrentPlayer() && id != -1;
+    return id != playerId && id != -1;
   }
 
   public static boolean isNewTerritoryCloserToEnemy(Risk game, int initialT, int newT) {

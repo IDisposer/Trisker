@@ -44,6 +44,7 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
 
   @Override
   public void setUp(int numberOfPlayers, int playerId) {
+    RiskUtils.initialize(playerId);
     super.setUp(numberOfPlayers, playerId);
     EventLogService.reset();
   }
@@ -337,7 +338,7 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     HashMap<Integer, Integer> occupiedContinents = new HashMap<>();
 
     for(Map.Entry<Integer, RiskTerritory> entry : board.getTerritories().entrySet()){
-      if(entry.getValue().getOccupantPlayerId() == game.getCurrentPlayer()) {
+      if(entry.getValue().getOccupantPlayerId() == playerId) {
         if(occupiedContinents.containsKey(entry.getValue().getContinentId())) {
           occupiedContinents.put(entry.getValue().getContinentId(),
                   occupiedContinents.get(entry.getValue().getContinentId()) + 1);
