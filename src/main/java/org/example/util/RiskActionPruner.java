@@ -91,7 +91,6 @@ public class RiskActionPruner {
       if (action.equals(RiskAction.endPhase())) continue;
 
       if (distances[action.fortifyingId()] <= distances[action.fortifiedId()]
-        || (distances[action.fortifyingId()] == 1 && distances[action.fortifiedId()] == 1)
         || (game.getBoard().getTerritoryTroops(action.fortifyingId()) - 1 != action.troops())) {
         prunedActions.remove(action);
       }
