@@ -57,7 +57,6 @@ public class RiskUtils {
     boolean[] visited = new boolean[nrOfTerritories];
     int[] distance = new int[nrOfTerritories];
 
-    visited[territoryId] = true;
     distance[territoryId] = 0;
     q.add(territoryId);
 
@@ -70,7 +69,6 @@ public class RiskUtils {
           if (game.getBoard().getTerritories().get(neighbour).getOccupantPlayerId() != playerId) {
             return distance[curr] + 1;
           }
-
           visited[neighbour] = true;
           q.add(neighbour);
           distance[neighbour] = distance[curr] + 1;

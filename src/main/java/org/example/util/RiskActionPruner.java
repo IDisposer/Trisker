@@ -29,6 +29,9 @@ public class RiskActionPruner {
    * @return the given actions minus the removed actions
    */
   public static Set<RiskAction> pruneBadAttacks(Risk game, Set<RiskAction> actions) {
+    if(!game.getBoard().isAttackPhase()) {
+      return actions;
+    }
     int targetId;
     Set<RiskAction> goodActions = new HashSet<>();
     for(RiskAction action : actions) {
@@ -50,6 +53,9 @@ public class RiskActionPruner {
    * @return
    */
   public static Set<RiskAction> pruneBadReinforcements(Risk game, Set<RiskAction> actions) {
+    if(!game.getBoard().isReinforcementPhase()) {
+      return actions;
+    }
     int targetId;
     Set<RiskAction> goodActions = new HashSet<>();
     for(RiskAction action : actions) {
@@ -62,6 +68,10 @@ public class RiskActionPruner {
   }
 
   public static Set<RiskAction> pruneBadEndphase(Risk game, Set<RiskAction> actions) {
+    if(game.getBoard().isReinforcementPhase()) {
+      //there is no endphase in the reinforcement phase
+      return actions;
+    }
     Set<RiskAction> goodActions = new HashSet<>(actions);
     RiskAction endPhase = null;
     boolean hasGoodActionLeft = false;

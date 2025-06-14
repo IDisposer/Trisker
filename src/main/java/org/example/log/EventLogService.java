@@ -19,7 +19,7 @@ import java.util.Map;
 public class EventLogService {
 
   private static final Path EVENT_LOG_FILE = Path.of("./event-logs.log");
-  private static final boolean ENABLED = true;
+  private static final boolean ENABLED = false;
   private static int boardCounter = 0;
 
   private static final ObjectMapper mapper;

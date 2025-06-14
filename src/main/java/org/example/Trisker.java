@@ -36,6 +36,7 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
   private final HashSet<Integer> opponentIds = new HashSet<>();
   private int proportion = 0;
   private final int TOTAL_RUNS_PER_ROUND = 1400;
+  private int counter = 0;
 
 
   public Trisker(Logger log){
@@ -91,12 +92,21 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
         }
         UCBNode bestNode = UCBLogic.selectBest(root);
         RiskAction bestAction = bestNode.getRiskAction();
-
+        /*
         EventLogService.logBoard("OWN", (Risk) game.doAction(bestAction).getGame());
         log.warn("BoardCounter: " + EventLogService.getBoardCounter());
 
         if(bestNode.getRiskAction().selected() >= 0 && RiskUtils.isTerritoryOfEnemy(bestNode.getState(), bestNode.getRiskAction().selected())) {
           log.warn("Attacked: " + bestNode.getRiskAction() + "| against = " + bestNode.getState().getBoard().getTerritories().get(bestNode.getRiskAction().selected()).getTroops());
+        } else if (!RiskUtils.isInitialPlacingPhase(bestNode.getState().getBoard()) && bestNode.getRiskAction().defendingId() >= 0 && bestNode.getRiskAction().attackingId() != -1){
+          int distanceFrom = RiskUtils.calculateDistanceToClosestEnemyTerritory(bestNode.getState(), bestAction.attackingId());
+          int distanceTo = RiskUtils.calculateDistanceToClosestEnemyTerritory(bestNode.getState(), bestAction.defendingId());
+          log.warn("Fortified: " + bestNode.getRiskAction() +
+                  "| from distance: " + distanceFrom +
+                  "| to distance: " + distanceTo);
+          if(distanceFrom - distanceTo < 0) {
+            counter++;
+          }
         }
         log.warn("Best one Taken: ");
         log.warn(bestNode.getRiskAction() + " with ucbscore: "
@@ -106,6 +116,8 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
           log.warn(child.getRiskAction() + " with ucbscore: "
                   + UCBLogic.calculateUCB(child)+ " t: " + child.getTotal() + " v: " + child.getVisits());
         }
+        log.warn("times moved away from the enemy: " + counter);
+        */
         return bestAction;
       } else {
         System.exit(1);
@@ -125,6 +137,12 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     return startRandomSimulation(node);
   }
 
+  /**
+   * Starts a simulation according to MCTS-logic and calculates the value given to the node from which this simulation starts.
+   * This simulation is random.
+   * @param node the {@link UCBNode} to start the simulation from
+   * @return the value reached as a sum of all rewards obtained during the simulation weighted by when they happened
+   */
   private double startRandomSimulation(UCBNode node) {
     double points = 0.d;
     Risk game = new Risk(node.getState());
@@ -148,6 +166,13 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
             5000 : !game.isGameOver() ? points : -1000;
   }
 
+  /**
+   * Calculates the reward that should be given during simulation based on the previous action.
+   * @param gameAfter the game state after the action in question has been applied. The action is obtained via calling
+   *                  {@link Risk#getPreviousAction()} on this instance of {@link Risk}.
+   * @param gameBefore the game state exactly before the action in question was executed.
+   * @return a number that represents the reward that should be given for choosing the action in question
+   */
   private double calculateRewardForPreviousAction(Risk gameAfter, Risk gameBefore) {
     double reward = 0.d;
     int targetId = RiskUtils.getTargetOfAction(gameAfter.getPreviousAction());
@@ -156,10 +181,10 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
       HashMap<Integer, Double> territoryRewards = distributeTerritoryRewards((Risk) gameAfter.getGame(playerId));
       if(RiskUtils.isInitialPlacingPhase(gameAfter.getBoard())) {
         reward += territoryRewards.get(targetId);
-      } else if(RiskUtils.isTerritoryOfEnemy(gameBefore, targetId)) {
+      } else if(RiskUtils.isTerritoryOfEnemy((Risk) gameBefore.getGame(playerId), targetId)) {
         //we are attacking
-        reward += getRewardForAttack(gameBefore, initId, targetId);
-        if(RiskUtils.isTerritoryOfEnemy(gameAfter, targetId)) {
+        reward += getRewardForAttack((Risk) gameBefore.getGame(playerId), initId, targetId);
+        if(RiskUtils.isTerritoryOfEnemy((Risk) gameAfter.getGame(playerId), targetId)) {
           //give reward for winning a territory based on what that territory gives
           reward += territoryRewards.get(targetId);
         }
@@ -167,8 +192,8 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
         //we are reinforcing
         reward += getRewardForReinforcing(gameBefore.getBoard().getTerritoryTroops(targetId),
                 gameAfter.getBoard().getTerritoryTroops(targetId),
-                RiskUtils.getTotalTroopsOfNeighbouringEnemies(gameAfter,
-                        new ArrayList<>(gameAfter.getBoard().neighboringEnemyTerritories(targetId))));
+                RiskUtils.getTotalTroopsOfNeighbouringEnemies((Risk) gameAfter.getGame(playerId),
+                        new ArrayList<>(gameAfter.getGame(playerId).getBoard().neighboringEnemyTerritories(targetId))));
       } else {
         //we are fortifying
         reward += getRewardForFortifying(gameAfter, initId, targetId);
@@ -183,6 +208,13 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     return reward;
   }
 
+  /**
+   * Gives a reward based on how good a fortification was
+   * @param game the game state after the fortifying action has been executed
+   * @param initId the id of the fortifying {@link RiskTerritory} (where troops come from)
+   * @param targetId the id of the fortified {@link RiskTerritory} (where troops go to)
+   * @return a number representing the reward given for this fortification
+   */
   private double getRewardForFortifying(Risk game, int initId, int targetId) {
     if(RiskUtils.isNewTerritoryCloserToEnemy(game, initId, targetId)) {
       return RewardFactors.FORTIFIED_TERRITORY_CLOSER_TO_ENEMY;
@@ -191,6 +223,15 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     }
   }
 
+  /**
+   * Gives a reward based on how good a reinforcement was. An extra reward is issued if before the reinforcements
+   * the total amount of enemy troops in neighbouring territories was bigger than the ones in the reinforced territory
+   * and afterwards this is no longer the case.
+   * @param troopsBefore the amount of troops that are in the territory to be reinforced before that reinforcement happens
+   * @param troopsAfter the amount of troops that are in the territory to be reinforced after that reinforcement happens
+   * @param totalEnemyTroops the total amount of troops stationed in all surrounding enemy territories
+   * @return a number representing the reward given for this reinforcement
+   */
   private double getRewardForReinforcing(int troopsBefore, int troopsAfter, int totalEnemyTroops) {
     if(totalEnemyTroops == 0)
       return RewardFactors.REINFORCED_TERRITORY_WITHOUT_ENEMY_NEARBY;
@@ -208,6 +249,14 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     return reward;
   }
 
+  /**
+   * Gives a reward based on how good a reinforcement was. Gives more rewards if more than one more unit than the enemy
+   * has to defend was used.
+   * @param game the game state after the attack
+   * @param attackingId the id of the territory where the attack is happening from
+   * @param defendingId the id of the territory that is being attacked
+   * @return
+   */
   private double getRewardForAttack(Risk game, int attackingId, int defendingId) {
     Map<Integer, RiskTerritory> territories = game.getBoard().getTerritories();
     int troopDifference = territories.get(attackingId).getTroops() - territories.get(defendingId).getTroops();
