@@ -214,10 +214,11 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     for (RiskAction action : actions) {
       if (action.equals(RiskAction.endPhase())) continue;
 
-      if (distances[action.fortifyingId()] <= distances[action.fortifiedId()]) {
-        prunedActions.remove(action);
+      if (distances[action.fortifyingId()] > distances[action.fortifiedId()]) {
         foundGoodAction = true;
+        continue;
       }
+      prunedActions.remove(action);
     }
 
     if (foundGoodAction) {
