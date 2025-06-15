@@ -4,7 +4,7 @@ import * as Tree from './tree.mjs';
 const mapContainer = document.getElementById("map-container");
 const treeContainer = document.getElementById("tree-container");
 
-let currentEventIdx = extractEventIdxFromUrl();
+let currentEventIdx = 0;
 const eventStepSize = extractEventStepSizeFromUrl();
 const treeEventsEnabled = enableTreeEventFromUrl();
 let eventLogs = [];
@@ -16,6 +16,7 @@ async function init() {
     if (!treeEventsEnabled) {
         eventLogs = eventLogs.filter(x => x.type !== 'TREE');
     }
+    currentEventIdx = extractEventIdxFromUrl();
 }
 
 function extractEventIdxFromUrl() {
