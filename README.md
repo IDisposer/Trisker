@@ -12,7 +12,7 @@ Used for creating a Risk AI for the stragety game programming course. Made by Ma
 * Reward for occupying continents (each newly occupied territory of a continent gives more rewards than the last)
 * Reward for moving troops closer to the enemy in the fortifying phase
 * Pruning of the following actions to reduce the width of the MCTS-Tree:
-    * Attacks that attack with equal or less troops than the enemy has to defend with
+    * Attacks that attack with equal or less troops than the enemy has to defend with, unless there are no other good attacks left. Then we allow attacks on territories where we have at least 3 more total troops available than the opponent
     * Reinforcements that reinforce territories that aren't near an enemy
     * Fortifications that fortify a territory that is further away from the enemy than the fortifying territory is
     * Endphase actions that occur even though there are still good attacks or good fortifications to be done

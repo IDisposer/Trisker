@@ -71,62 +71,42 @@ public class tu_sgp_Trisker_AI extends AbstractGameAgent<Risk, RiskAction>
                              TimeUnit timeUnit){
     try {
       EventLogService.logBoard("ENEMY", game);
-
       if(isFirstRound){
         isFirstRound = false;
         ownSetup(game);
       }
       super.setTimers(computationTime, timeUnit);
-      if(!game.isGameOver()) {
-        UCBNode root = startMCSTree(game);
-        UCBLogic.expandAll(root, RiskActionPruner.getPrunedActions(game));
-        proportion = root.getChildren().size();
-        UCBNode node = root;
-        while(!shouldStopComputation()) {
-          if(node.getVisits() == 0 && node.getChildren().isEmpty()) {
-            double value = startSimulation(node);
+      UCBNode root = startMCSTree(game);
+      UCBLogic.expandAll(root, RiskActionPruner.getPrunedActions(game));
+      proportion = root.getChildren().size();
+      UCBNode node = root;
+      while(!shouldStopComputation()) {
+        if(node.getVisits() == 0 && node.getChildren().isEmpty()) {
+          double value = startSimulation(node);
 
-            UCBLogic.backpropagate(node, value);
-            node = root;
+          UCBLogic.backpropagate(node, value);
+          node = root;
 
-            EventLogService.logTree(root);
-          } else if (node.getChildren().isEmpty()) {
-            UCBLogic.expandAll(node, RiskActionPruner.getPrunedActions(node.getState()));
-            proportion = node.getChildren().size();
-            node = UCBLogic.selectBest(node);
-            double value = startSimulation(node);
+          EventLogService.logTree(root);
+        } else if (node.getChildren().isEmpty()) {
+          UCBLogic.expandAll(node, RiskActionPruner.getPrunedActions(node.getState()));
+          proportion = node.getChildren().size();
+          node = UCBLogic.selectBest(node);
+          double value = startSimulation(node);
 
-            UCBLogic.backpropagate(node, value);
-            node = root;
+          UCBLogic.backpropagate(node, value);
+          node = root;
 
-            EventLogService.logTree(root);
-          } else {
-            node = UCBLogic.selectBest(node);
-          }
+          EventLogService.logTree(root);
+        } else {
+          node = UCBLogic.selectBest(node);
         }
-        UCBNode bestNode = UCBLogic.selectBest(root);
-        RiskAction bestAction = bestNode.getRiskAction();
-
-        EventLogService.logBoard("OWN", (Risk) game.doAction(bestAction).getGame());
-        log.warn("BoardCounter: " + EventLogService.getBoardCounter());
-
-        if(bestNode.getRiskAction().selected() >= 0 && RiskUtils.isTerritoryOfEnemy(bestNode.getState(), bestNode.getRiskAction().selected())) {
-          log.warn("Attacked: " + bestNode.getRiskAction() + "| against = " + bestNode.getState().getBoard().getTerritories().get(bestNode.getRiskAction().selected()).getTroops());
-        }
-        log.warn("Best one Taken: ");
-        log.warn(bestNode.getRiskAction() + " with ucbscore: "
-                + UCBLogic.calculateUCB(bestNode) + " t: " + bestNode.getTotal() + " v: " + bestNode.getVisits());
-        log.warn("Out of: ");
-        for(UCBNode child : root.getChildren()) {
-          log.warn(child.getRiskAction() + " with ucbscore: "
-                  + UCBLogic.calculateUCB(child)+ " t: " + child.getTotal() + " v: " + child.getVisits());
-        }
-
-        return bestAction;
-      } else {
-        System.exit(1);
-        return List.copyOf(RiskActionPruner.getPrunedActions(game)).get(0);
       }
+      UCBNode bestNode = UCBLogic.selectBest(root);
+      RiskAction bestAction = bestNode.getRiskAction();
+
+      EventLogService.logBoard("OWN", (Risk) game.doAction(bestAction).getGame());
+      return bestAction;
     } catch (Exception ex) {
       ex.printStackTrace();
       throw ex;
@@ -165,8 +145,10 @@ public class tu_sgp_Trisker_AI extends AbstractGameAgent<Risk, RiskAction>
     int cnt = 0;
     while(!game.isGameOver() && !shouldStopComputation() && cnt < TOTAL_RUNS_PER_ROUND / proportion) { //RiskState.isInitialPlacingPhase(game.getBoard())
       cnt++;
-      if(game.getPreviousActionRecord().getPlayer() == playerId) {
+      if(game.getCurrentPlayer() != playerId) {
         opponentIds.add(game.getCurrentPlayer());
+      }
+      if(game.getPreviousActionRecord().getPlayer() == playerId) {
         points += calculateRewardForPreviousAction(game, gameBefore) / cnt * 10;
       }
       Set<RiskAction> actions = game.getCurrentPlayer() != playerId ?
@@ -273,7 +255,7 @@ public class tu_sgp_Trisker_AI extends AbstractGameAgent<Risk, RiskAction>
    */
   private double getRewardForAttack(Risk game, int attackingId, int defendingId) {
     Map<Integer, RiskTerritory> territories = game.getBoard().getTerritories();
-    int troopDifference = territories.get(attackingId).getTroops() - territories.get(defendingId).getTroops();
+    int troopDifference = (territories.get(attackingId).getTroops() - 1) - territories.get(defendingId).getTroops();
     if (troopDifference <= 0) {
       return RewardFactors.LESS_TROOPS_FOR_ATTACK;
     }

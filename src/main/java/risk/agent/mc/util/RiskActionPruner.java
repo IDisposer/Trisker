@@ -45,9 +45,20 @@ public class RiskActionPruner {
     for(RiskAction action : actions) {
       targetId = RiskUtils.getTargetOfAction(action);
       if(!RiskUtils.isTerritoryOfEnemy(game, targetId)
-              || game.getBoard().getTerritories().get(targetId).getTroops() < action.troops()) {
+              || game.getBoard().getTerritoryTroops(targetId) < action.troops()) {
         //we are NOT attacking with less than or equal troops to the defender
         goodActions.add(action);
+      }
+    }
+    if (goodActions.size() == 1) {
+      //we pruned all actions except the endphase
+      for(RiskAction action : actions) {
+        targetId = RiskUtils.getTargetOfAction(action);
+        if(RiskUtils.isTerritoryOfEnemy(game, targetId) 
+                && game.getBoard().getTerritoryTroops(action.attackingId()) - 3 > game.getBoard().getTerritoryTroops(targetId)) {
+          //add attacks against territories with more than 2 troops if we have more than 3 more total units available than the opponent
+          goodActions.add(action);
+        }
       }
     }
     return goodActions;

@@ -52,6 +52,8 @@ public class RiskActionIdentifier {
    */
   @Override
   public boolean equals(Object obj) {
-    return obj.getClass() == this.getClass() && this.hashCode() == obj.hashCode();
+    return obj.getClass() == this.getClass()
+            && this.getSourceId() == ((RiskActionIdentifier) obj).getSourceId()
+            && this.getTargetId() == ((RiskActionIdentifier) obj).getTargetId();
   }
 }

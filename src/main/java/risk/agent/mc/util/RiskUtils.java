@@ -6,6 +6,7 @@ import at.ac.tuwien.ifs.sge.game.risk.board.RiskBoard;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskTerritory;
 import risk.agent.mc.data.RiskActionIdentifier;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -40,6 +41,7 @@ public class RiskUtils {
    */
   public static Set<RiskAction> groupActions(Set<RiskAction> actions) {
     HashMap<RiskActionIdentifier, RiskAction> actionsMap = new HashMap<>();
+
     RiskActionIdentifier rai;
     for(RiskAction action : actions) {  //add the actions with the biggest values
       rai = new RiskActionIdentifier(action.attackingId(), action.defendingId());
@@ -57,6 +59,7 @@ public class RiskUtils {
       }
     }
     result.addAll(actionsMap.values());
+    RiskAction maxAction = actions.stream().max((x,y) -> x.troops() - y.troops()).orElse(null);
     return result;
   }
 
