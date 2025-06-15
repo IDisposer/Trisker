@@ -24,10 +24,10 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-//Run command for the game engine:
-//java -jar sge-1.0.7-exe.jar match --file=sge-risk-1.0.7-exe.jar --directory=agentstest
-//https://gitlab.com/StrategyGameEngine/sge-risk
-
+/**
+ * Trisker is a Risk game agent for the course 188.981 VU Strategy Game Programming summer term 2025.
+ * Made by Maximillian Gutschier and Christian Pirngruber
+ */
 public class tu_sgp_Trisker_AI extends AbstractGameAgent<Risk, RiskAction>
         implements GameAgent<Risk, RiskAction> {
 

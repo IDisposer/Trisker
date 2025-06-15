@@ -6,6 +6,9 @@ import at.ac.tuwien.ifs.sge.game.risk.board.RiskAction;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * This class contains several pruning methods for {@link RiskAction} objects
+ */
 public class RiskActionPruner {
 
   /**
