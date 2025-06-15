@@ -18,17 +18,22 @@ Linux:
 The Node.js game state viewer can be found in the website package.
 To Install and start it, execute the following commands:
 
-```bash
-cd website
-```
+1. Change Directory
+    ```bash
+    cd website
+    ```
 
-```bash
-npm install
-```
+2. Edit Configuration <br>
+Configure the path to the directory with the board configuration files inside **server.js**.
 
-```bash
-npm start
-```
+3. Install Dependencies
+    ```bash
+    npm install
+    ```
+4. Start Server
+    ```bash
+    npm start
+    ```
 
 The server should now be available at http://loacalhost:3000
 
