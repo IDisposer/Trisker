@@ -53,9 +53,9 @@ public class RiskActionPruner {
   /**
    * Returns all actions minus reinforcements that don't reinforce a territory that is next to an enemy.
    * If no reinforcements have nearby enemies all actions are returned.
-   * @param game
-   * @param actions
-   * @return
+   * @param game the current game state the given actions would apply to
+   * @param actions the actions to check for bad reinforcements in
+   * @return the filtered actions
    */
   public static Set<RiskAction> pruneBadReinforcements(Risk game, Set<RiskAction> actions) {
     if(!game.getBoard().isReinforcementPhase()) {
@@ -72,6 +72,13 @@ public class RiskActionPruner {
     return goodActions.isEmpty() ? actions : goodActions;
   }
 
+  /**
+   * If there are good attacks left the endphase action will be removed.
+   * Prerequisite: the actions parameter has to be run through {@link RiskActionPruner#pruneBadAttacks(Risk, Set)} first.
+   * @param game the current game state the given actions would apply to
+   * @param actions the actions to check for a bad endphase in
+   * @return the filtered actions
+   */
   public static Set<RiskAction> pruneBadEndphase(Risk game, Set<RiskAction> actions) {
     if(game.getBoard().isReinforcementPhase()) {
       //there is no endphase in the reinforcement phase

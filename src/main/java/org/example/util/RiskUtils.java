@@ -15,10 +15,19 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 
+/**
+ * Provides several utility functions for writing a game agent for the game risk.
+ * {@link RiskUtils#initialize(int)} has to be called before any other method in this class to ensure functionality.
+ */
 public class RiskUtils {
 
   private static int playerId = -1;
 
+  /**
+   * Sets the player id of our agent to be used in future calculations.
+   * Should be called before any other method in {@link RiskUtils} is called
+   * @param pId the id of our agent in the current game
+   */
   public static void initialize(int pId) {
     playerId = pId;
   }

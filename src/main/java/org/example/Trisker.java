@@ -425,6 +425,9 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     return seizedTerritories + 1 == c.getTerritories().size();
   }
 
+  /**
+   * 
+   */
   private void createRewardsByContinent() {
     continents.forEach((id, continent) -> {
       double reward = 0.d;
@@ -438,6 +441,15 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     });
   }
 
+  /**
+   * Assigns each continent a new reward value according to the {@link Continent#getBaseReward()} and the amount of
+   * territories of each continent the agent already owns.
+   * @param occupiedContinents a HashMap of the already occupied continents of the agent.
+   *                           The key is the id of the continent and the value is the amount
+   *                           of territories of that continent the agent owns.
+   * @return a HashMap containing the rewards for each continent where the agent owns a territory in.
+   *         The key is the id of the continent and the value is the reward for that continent.
+   */
   private HashMap<Integer, Double> updateRewardsByContinent(HashMap<Integer, Integer> occupiedContinents) {
     HashMap<Integer, Double> contRewards = new HashMap<>();
     continents.forEach((id, continent) -> {
@@ -453,6 +465,13 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     return contRewards;
   }
 
+  /**
+   * Creates a HashMap of our own {@link Continent} objects to be used in later calculations. Uses the continents of
+   * @link RiskBoard}.
+   * @param board the {@link RiskBoard} to get the continents from
+   * @return a HashMap of the {@link Continent} objects of this game.
+   *        The key of the map is the id of the continents given by {@link RiskBoard}.
+   */
   private HashMap<Integer, Continent> createContinentsWithAllTerritories(RiskBoard board) {
     HashMap<Integer, Continent> continents = new HashMap<>();
     board.getTerritories().forEach((id, territory) -> {
