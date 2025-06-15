@@ -24,11 +24,11 @@ jar {
     // Its cleaner to just take the jar from the build folder or maybe copy it after building
     // destinationDirectory.set(file("./environment/agents"))
     manifest {
-        attributes "Main-Class": "org.example.tu_sgp_Trisker_AI"
+        attributes "Main-Class": "risk.agent.mc.tu_sgp_Trisker_AI"
     }
     manifest {
         attributes("Sge-Type": "agent",
-                "Agent-Class": "org.example.tu_sgp_Trisker_AI",
+                "Agent-Class": "risk.agent.mc.tu_sgp_Trisker_AI",
                 "Agent-Name": "tu_sgp_Trisker_AI")
     }
 

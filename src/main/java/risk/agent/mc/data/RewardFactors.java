@@ -1,4 +1,4 @@
-package org.example.data;
+package risk.agent.mc.data;
 
 /**
  * These are the values that are supposed to be given/subtracted during the simulation process for different actions.

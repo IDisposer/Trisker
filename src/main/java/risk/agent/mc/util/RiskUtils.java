@@ -1,10 +1,10 @@
-package org.example.util;
+package risk.agent.mc.util;
 
 import at.ac.tuwien.ifs.sge.game.risk.board.Risk;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskAction;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskBoard;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskTerritory;
-import org.example.data.RiskActionIdentifier;
+import risk.agent.mc.data.RiskActionIdentifier;
 
 import java.util.Collection;
 import java.util.HashMap;

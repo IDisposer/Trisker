@@ -1,4 +1,4 @@
-package org.example.mcts;
+package risk.agent.mc.mcts;
 
 import at.ac.tuwien.ifs.sge.game.risk.board.Risk;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskAction;

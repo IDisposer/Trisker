@@ -1,4 +1,4 @@
-package org.example.data;
+package risk.agent.mc.data;
 
 import java.util.Objects;
 

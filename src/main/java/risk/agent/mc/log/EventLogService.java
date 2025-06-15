@@ -1,4 +1,4 @@
-package org.example.log;
+package risk.agent.mc.log;
 
 import at.ac.tuwien.ifs.sge.game.risk.board.Risk;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskAction;
@@ -6,8 +6,8 @@ import at.ac.tuwien.ifs.sge.game.risk.board.RiskTerritory;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
-import org.example.mcts.TreeNode;
-import org.example.mcts.UCBNode;
+import risk.agent.mc.mcts.TreeNode;
+import risk.agent.mc.mcts.UCBNode;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

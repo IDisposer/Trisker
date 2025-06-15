@@ -1,4 +1,4 @@
-package org.example;
+package risk.agent.mc;
 
 import at.ac.tuwien.ifs.sge.agent.AbstractGameAgent;
 import at.ac.tuwien.ifs.sge.agent.GameAgent;
@@ -7,13 +7,13 @@ import at.ac.tuwien.ifs.sge.game.risk.board.Risk;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskAction;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskBoard;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskTerritory;
-import org.example.data.Continent;
-import org.example.data.RewardFactors;
-import org.example.log.EventLogService;
-import org.example.mcts.UCBLogic;
-import org.example.mcts.UCBNode;
-import org.example.util.RiskActionPruner;
-import org.example.util.RiskUtils;
+import risk.agent.mc.data.Continent;
+import risk.agent.mc.data.RewardFactors;
+import risk.agent.mc.log.EventLogService;
+import risk.agent.mc.mcts.UCBLogic;
+import risk.agent.mc.mcts.UCBNode;
+import risk.agent.mc.util.RiskActionPruner;
+import risk.agent.mc.util.RiskUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;

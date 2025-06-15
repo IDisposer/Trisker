@@ -1,4 +1,4 @@
-package org.example.util;
+package risk.agent.mc.util;
 
 import at.ac.tuwien.ifs.sge.game.risk.board.Risk;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskAction;

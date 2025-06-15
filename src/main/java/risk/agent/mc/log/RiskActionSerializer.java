@@ -1,4 +1,4 @@
-package org.example.log;
+package risk.agent.mc.log;
 
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskAction;
 import com.fasterxml.jackson.core.JsonGenerator;

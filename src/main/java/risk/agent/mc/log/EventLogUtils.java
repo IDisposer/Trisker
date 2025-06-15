@@ -1,7 +1,7 @@
-package org.example.log;
+package risk.agent.mc.log;
 
-import org.example.mcts.UCBLogic;
-import org.example.mcts.UCBNode;
+import risk.agent.mc.mcts.UCBLogic;
+import risk.agent.mc.mcts.UCBNode;
 
 public class EventLogUtils {
 

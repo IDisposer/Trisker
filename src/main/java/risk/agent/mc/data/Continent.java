@@ -1,4 +1,4 @@
-package org.example.data;
+package risk.agent.mc.data;
 
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskContinent;
 import at.ac.tuwien.ifs.sge.game.risk.board.RiskTerritory;
