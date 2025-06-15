@@ -10,6 +10,7 @@ import at.ac.tuwien.ifs.sge.game.risk.board.RiskTerritory;
 import org.example.data.Continent;
 import org.example.data.RewardFactors;
 import org.example.log.EventLogService;
+import org.example.log.EventLogUtils;
 import org.example.mcts.UCBLogic;
 import org.example.mcts.UCBNode;
 import org.example.util.RiskActionPruner;
@@ -88,6 +89,8 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
 
             UCBLogic.backpropagate(node, value);
             node = root;
+
+            EventLogService.logTree(root);
           } else if (node.getChildren().isEmpty()) {
             UCBLogic.expandAll(node, RiskActionPruner.getPrunedActions(node.getState()));
             proportion = node.getChildren().size();
@@ -96,6 +99,8 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
 
             UCBLogic.backpropagate(node, value);
             node = root;
+
+            EventLogService.logTree(root);
           } else {
             node = UCBLogic.selectBest(node);
           }

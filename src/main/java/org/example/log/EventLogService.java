@@ -6,6 +6,8 @@ import at.ac.tuwien.ifs.sge.game.risk.board.RiskTerritory;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import org.example.mcts.TreeNode;
+import org.example.mcts.UCBNode;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -18,8 +20,15 @@ import java.util.Map;
 public class EventLogService {
 
   private static final Path EVENT_LOG_FILE = Path.of("./event-logs.log");
-  private static final boolean ENABLED = false;
+  private static final boolean ENABLED = true;
+
+
+  private static final boolean DISABLE_TREE_EVENTS = true;
+  private static final int TREE_EVENT_LIMIT_PER_BOARD = 100;
+  private static final int TREE_START = 40;
+  private static final int TREE_END = 42;
   private static int boardCounter = 0;
+  private static int treeEventCounter = 0;
 
   private static final ObjectMapper mapper;
 
@@ -32,7 +41,8 @@ public class EventLogService {
   }
 
   public enum Type {
-    BOARD
+    BOARD,
+    TREE
   }
 
   private static class LogEntry {
@@ -106,6 +116,28 @@ public class EventLogService {
     LogEntry logEntry = new LogEntry();
     logEntry.setType(Type.BOARD);
     logEntry.setData(boardLog);
+
+    log(serialize(logEntry));
+  }
+
+  public static void logTree(TreeNode<?> root) {
+    if (!ENABLED && !DISABLE_TREE_EVENTS) {
+      return;
+    }
+
+    if (boardCounter >= TREE_START || treeEventCounter == TREE_EVENT_LIMIT_PER_BOARD) {
+      return;
+    }
+
+    treeEventCounter++;
+
+    LogEntry logEntry = new LogEntry();
+    logEntry.setType(Type.TREE);
+    logEntry.setData(root);
+
+    if (root instanceof UCBNode) {
+      EventLogUtils.calculateUCBRecursive((UCBNode) root);
+    }
 
     log(serialize(logEntry));
   }
