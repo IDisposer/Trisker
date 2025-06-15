@@ -10,7 +10,6 @@ import at.ac.tuwien.ifs.sge.game.risk.board.RiskTerritory;
 import org.example.data.Continent;
 import org.example.data.RewardFactors;
 import org.example.log.EventLogService;
-import org.example.log.EventLogUtils;
 import org.example.mcts.UCBLogic;
 import org.example.mcts.UCBNode;
 import org.example.util.RiskActionPruner;
@@ -29,7 +28,7 @@ import java.util.stream.Collectors;
 //java -jar sge-1.0.7-exe.jar match --file=sge-risk-1.0.7-exe.jar --directory=agentstest
 //https://gitlab.com/StrategyGameEngine/sge-risk
 
-public class Trisker extends AbstractGameAgent<Risk, RiskAction>
+public class tu_sgp_Trisker_AI extends AbstractGameAgent<Risk, RiskAction>
         implements GameAgent<Risk, RiskAction> {
 
   private HashMap<Integer, Continent> continents = null;
@@ -39,7 +38,7 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
   private final int TOTAL_RUNS_PER_ROUND = 1400;
 
 
-  public Trisker(Logger log){
+  public tu_sgp_Trisker_AI(Logger log){
     super(log);
   }
 

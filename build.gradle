@@ -24,12 +24,12 @@ jar {
     // Its cleaner to just take the jar from the build folder or maybe copy it after building
     // destinationDirectory.set(file("./environment/agents"))
     manifest {
-        attributes "Main-Class": "org.example.Trisker"
+        attributes "Main-Class": "org.example.tu_sgp_Trisker_AI"
     }
     manifest {
         attributes("Sge-Type": "agent",
-                "Agent-Class": "org.example.Trisker",
-                "Agent-Name": "Trisker")
+                "Agent-Class": "org.example.tu_sgp_Trisker_AI",
+                "Agent-Name": "tu_sgp_Trisker_AI")
     }
 
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE

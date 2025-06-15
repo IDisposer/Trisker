@@ -13,7 +13,7 @@ public class UCBLogic {
   /**
    * The Exploration factor used in the UCB-Value calculation
    */
-  private static double EXPLORATION_FACTOR = 12800;
+  private static double EXPLORATION_FACTOR = 8000;
 
   /**
    * Calculates the UCB value of the given node
