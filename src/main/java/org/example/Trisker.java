@@ -466,4 +466,9 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     });
     return continents;
   }
+
+  @Override
+  public String toString() {
+    return "TriskerAgent";
+  }
 }

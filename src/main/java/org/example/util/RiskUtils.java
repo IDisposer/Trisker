@@ -51,6 +51,13 @@ public class RiskUtils {
     return result;
   }
 
+  /**
+   * Calculates the distance from the territory with territoryId
+   * to the closest enemy territory
+   * @param game the game state on which to make the calculation
+   * @param territoryId the origin territory for the calculation
+   * @return the closest distance to an enemy territory
+   */
   public static int calculateDistanceToClosestEnemyTerritory(Risk game, int territoryId) {
     Queue<Integer> q = new LinkedList<>();
     int nrOfTerritories = game.getBoard().getTerritories().size();
@@ -78,6 +85,12 @@ public class RiskUtils {
     return -1;
   }
 
+  /**
+   * Calculates a distance map from each friendly territory to each nearest neighbor
+   * Distance 0 means that the territory with that id is an enemy territory
+   * @param game the game state on which to make the calculation
+   * @return a map from all territories with their distances to the closest enemy
+   */
   public static int[] calculateDistanceMapToClosestEnemyTerritories(Risk game) {
     Queue<Integer> q = new LinkedList<>();
     int nrOfTerritories = game.getBoard().getTerritories().size();
@@ -107,6 +120,12 @@ public class RiskUtils {
     return distance;
   }
 
+  /**
+   * Sums up all troops of the territories given in the given game state
+   * @param game the game state
+   * @param neighbouringEnemyList the list of territories
+   * @return the sum of the number of troops in the given territories
+   */
   public static int getTotalTroopsOfNeighbouringEnemies(Risk game, Collection<Integer> neighbouringEnemyList) {
     int total = 0;
     Map<Integer, RiskTerritory> territories = game.getBoard().getTerritories();
@@ -116,10 +135,22 @@ public class RiskUtils {
     return total;
   }
 
+  /**
+   * Calculates the sum of troops of all enemy territories surrounding the territory with the given id
+   * @param game the game state
+   * @param territoryId the territory from where to get the enemies
+   * @return the sum of enemy troops around the given territory
+   */
   public static int getTotalTroopsOfNeighbouringEnemies(Risk game, int territoryId) {
     return getTotalTroopsOfNeighbouringEnemies(game, game.getBoard().neighboringEnemyTerritories(territoryId));
   }
 
+  /**
+   * Return if the enemy territory is friendly or not
+   * @param game the game state
+   * @param territoryId the territory to check the friendliness for
+   * @return true if enemy, else false
+   */
   public static boolean isTerritoryOfEnemy(Risk game, int territoryId) {
     if(territoryId < 0) //territory id is a special id
       return false;
@@ -127,14 +158,32 @@ public class RiskUtils {
     return id != playerId && id != -1;
   }
 
+  /**
+   * Checks if territory B is closer to an enemy as territory A
+   * @param game the game state
+   * @param initialT the first territory id (A)
+   * @param newT the second territory id (B)
+   * @return if B is closer as A true, else false
+   */
   public static boolean isNewTerritoryCloserToEnemy(Risk game, int initialT, int newT) {
     return calculateDistanceToClosestEnemyTerritory(game, newT) - calculateDistanceToClosestEnemyTerritory(game, initialT) < 0;
   }
 
+  /**
+   * Gets the target territory id of an action
+   * @param action the action to extract the target from
+   * @return the territory id of the action
+   */
   public static int getTargetOfAction(RiskAction action) {
     return action.selected();
   }
 
+  /**
+   * Checks if the given territories belong to different continents
+   * @param board the game state
+   * @param territoryIds the territories to check for
+   * @return true if they belong to different continents, else false
+   */
   public static boolean territoriesBelongToDifferentContinents(RiskBoard board, List<Integer> territoryIds) {
     Map<Integer, RiskTerritory> territories = board.getTerritories();
     int baseline = territories.get(territoryIds.get(0)).getContinentId();
@@ -147,6 +196,11 @@ public class RiskUtils {
     return false;
   }
 
+  /**
+   * Checks if the board is in the initial placing phase
+   * @param board the board to check on
+   * @return true if in the initial placing phase, else false
+   */
   public static boolean isInitialPlacingPhase(RiskBoard board) {
     return board.getTerritories().values().parallelStream()
             .anyMatch(territory -> territory.getOccupantPlayerId() == -1);
