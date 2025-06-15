@@ -8,6 +8,11 @@ import java.util.Set;
 
 public class RiskActionPruner {
 
+  /**
+   * Prunes all unfavorable actions from the possible actions of the game state.
+   * @param game the game state of which to get the possible actions from
+   * @return the pruned actions
+   */
   public static Set<RiskAction> getPrunedActions(Risk game) {
     if(!RiskUtils.isInitialPlacingPhase(game.getBoard())) {
       Set<RiskAction> prunedActions = RiskUtils.groupActions(game.getPossibleActions());
@@ -90,6 +95,14 @@ public class RiskActionPruner {
     return goodActions;
   }
 
+  /**
+   * Remove actions from the given actions that are fortifies and
+   * where the fortifying distance to enemies is more remote than the fortified distance.
+   * Does not permute the original actions.
+   * @param game the gamestate before the actions are taken as an instance of {@link Risk}
+   * @param actions the actions to remove bad fortifies from
+   * @return the given actions minus the removed actions
+   */
   public static Set<RiskAction> pruneBadFortifies(Risk game, Set<RiskAction> actions) {
     if (!game.getBoard().isFortifyPhase()) {
       return actions;
