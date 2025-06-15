@@ -17,16 +17,20 @@ import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * This class logs event logs needed for the debugging in the Node.js frontend
+ *
+ * Currently, there are two event log types: TREE, BOARD
+ */
 public class EventLogService {
 
   private static final Path EVENT_LOG_FILE = Path.of("./event-logs.log");
-  private static final boolean ENABLED = true;
+  private static final boolean ENABLED = false;
 
 
-  private static final boolean DISABLE_TREE_EVENTS = true;
+  private static final boolean TREE_EVENTS_ENABLED = false;
   private static final int TREE_EVENT_LIMIT_PER_BOARD = 100;
   private static final int TREE_START = 40;
-  private static final int TREE_END = 42;
   private static int boardCounter = 0;
   private static int treeEventCounter = 0;
 
@@ -102,6 +106,11 @@ public class EventLogService {
     }
   }
 
+  /**
+   * Creates a BOARD event log for the frontend application
+   * @param player the player which changed the board last
+   * @param game the game after the change of the player
+   */
   public static void logBoard(String player, Risk game) {
     if (!ENABLED) {
       return;
@@ -120,8 +129,12 @@ public class EventLogService {
     log(serialize(logEntry));
   }
 
+  /**
+   * Creates a TREE event log for the frontend application
+   * @param root the root node of the tree
+   */
   public static void logTree(TreeNode<?> root) {
-    if (!ENABLED && !DISABLE_TREE_EVENTS) {
+    if (!ENABLED || !TREE_EVENTS_ENABLED) {
       return;
     }
 
@@ -142,7 +155,11 @@ public class EventLogService {
     log(serialize(logEntry));
   }
 
-  public static void log(String logString) {
+  /**
+   * Appends a message to the event logs file
+   * @param logString the log string to append
+   */
+  private static void log(String logString) {
     if (!ENABLED) {
       return;
     }
@@ -157,6 +174,9 @@ public class EventLogService {
     }
   }
 
+  /**
+   * Deletes the event log file if it exists
+   */
   public static void reset() {
     if (!ENABLED) {
       return;
@@ -168,6 +188,11 @@ public class EventLogService {
     }
   }
 
+  /**
+   * Serializes an Java object to json
+   * @param object the object to serialize
+   * @return a json string
+   */
   private static String serialize(Object object) {
     if (!ENABLED) {
       return null;
@@ -179,6 +204,10 @@ public class EventLogService {
     }
   }
 
+  /**
+   * Returns the current count of board actions logged
+   * @return the number of board actions logged
+   */
   public static int getBoardCounter() {
     return boardCounter;
   }

@@ -17,6 +17,9 @@ public class RiskActionSerializer extends StdSerializer<RiskAction> {
     super(t);
   }
 
+  /**
+   * Custom serializer for risk actions
+   */
   @Override
   public void serialize(
       RiskAction value, JsonGenerator jgen, SerializerProvider provider)
