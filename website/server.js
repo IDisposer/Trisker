@@ -2,17 +2,19 @@ const express = require('express')
 const path = require('path');
 const yaml = require('js-yaml');
 const fs = require('fs/promises');
-const os = require('os');
 const app = express()
-const port = 3000;
 
+// Dont use this server in production!
+// This server contains many major security risks for the system
+
+const PORT = 3000;
+const PATH_TO_BOARDS_DIRECTORY = '../environment/boards';
+
+// DO NOT CHANGE THE LINES AFTERWARDS
 const eventLogsCache = {
     lastModified: 0,
     data: {}
 }
-
-// Dont use this server in production!
-// This server contains many major security risks for the system
 
 app.use(express.static('static'));
 
@@ -21,7 +23,7 @@ app.get('/elkjs/:filename', (req, res) => {
 });
 
 app.get('/boards/:filename', async (req, res) => {
-    const pathToFile = path.join(__dirname, '..', 'environment', 'boards', req.params.filename);
+    const pathToFile = path.join(__dirname, PATH_TO_BOARDS_DIRECTORY, req.params.filename);
     let fileContent = await fs.readFile(pathToFile, 'utf-8');
     fileContent = fileContent.substring(fileContent.indexOf('\n') + 1);
     const json = yaml.load(fileContent);
@@ -46,6 +48,7 @@ app.get('/event-logs', async (req, res) => {
     res.send(lines);
 });
 
-app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`)
+app.listen(PORT, () => {
+  console.log(`Debugging app is listening on port ${PORT}`);
+  console.log(`http://localhost:${PORT}`);
 })
