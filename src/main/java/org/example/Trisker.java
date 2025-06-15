@@ -36,7 +36,6 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
   private final HashSet<Integer> opponentIds = new HashSet<>();
   private int proportion = 0;
   private final int TOTAL_RUNS_PER_ROUND = 1400;
-  private int counter = 0;
 
 
   public Trisker(Logger log){
@@ -50,11 +49,22 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     EventLogService.reset();
   }
 
+  /**
+   * Used for our own setup. Things that should only be done once per game.
+   * @param game the current game state
+   */
   private void ownSetup(Risk game)  {
     continents = createContinentsWithAllTerritories(game.getBoard());
     createRewardsByContinent();
   }
 
+  /**
+   * Houses the MCTS computations.
+   * @param game the game state to calculate the next action from
+   * @param computationTime the time the agent has to compute the next action
+   * @param timeUnit the timeunit of computationTime
+   * @return the next {@link RiskAction} taken by the agent
+   */
   @Override
   public RiskAction computeNextAction(Risk game,
                              long computationTime,
@@ -92,21 +102,12 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
         }
         UCBNode bestNode = UCBLogic.selectBest(root);
         RiskAction bestAction = bestNode.getRiskAction();
-        /*
+
         EventLogService.logBoard("OWN", (Risk) game.doAction(bestAction).getGame());
         log.warn("BoardCounter: " + EventLogService.getBoardCounter());
 
         if(bestNode.getRiskAction().selected() >= 0 && RiskUtils.isTerritoryOfEnemy(bestNode.getState(), bestNode.getRiskAction().selected())) {
           log.warn("Attacked: " + bestNode.getRiskAction() + "| against = " + bestNode.getState().getBoard().getTerritories().get(bestNode.getRiskAction().selected()).getTroops());
-        } else if (!RiskUtils.isInitialPlacingPhase(bestNode.getState().getBoard()) && bestNode.getRiskAction().defendingId() >= 0 && bestNode.getRiskAction().attackingId() != -1){
-          int distanceFrom = RiskUtils.calculateDistanceToClosestEnemyTerritory(bestNode.getState(), bestAction.attackingId());
-          int distanceTo = RiskUtils.calculateDistanceToClosestEnemyTerritory(bestNode.getState(), bestAction.defendingId());
-          log.warn("Fortified: " + bestNode.getRiskAction() +
-                  "| from distance: " + distanceFrom +
-                  "| to distance: " + distanceTo);
-          if(distanceFrom - distanceTo < 0) {
-            counter++;
-          }
         }
         log.warn("Best one Taken: ");
         log.warn(bestNode.getRiskAction() + " with ucbscore: "
@@ -116,8 +117,7 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
           log.warn(child.getRiskAction() + " with ucbscore: "
                   + UCBLogic.calculateUCB(child)+ " t: " + child.getTotal() + " v: " + child.getVisits());
         }
-        log.warn("times moved away from the enemy: " + counter);
-        */
+
         return bestAction;
       } else {
         System.exit(1);
@@ -129,10 +129,20 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     }
   }
 
+  /**
+   * Creates a new root for an MCTS-Tree.
+   * @param game the game state that is supposed to serve as the state the tree starts from
+   * @return a {@link UCBNode} without a parent node and without an associated {@link RiskAction}
+   */
   private UCBNode startMCSTree(Risk game) {
     return new UCBNode(null, null, game);
   }
 
+  /**
+   * Starts a simulation corresponding to the simulation phase of MCTS.
+   * @param node the {@link UCBNode} to start the simulation from.
+   * @return the value achieved during simulation
+   */
   private double startSimulation(UCBNode node) {
     return startRandomSimulation(node);
   }
@@ -272,11 +282,27 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     return RewardFactors.THREE_OR_MORE_UNITS_FOR_ATTACK;
   }
 
+  /**
+   * Gives a reward if the defenders casualties were higher than ours. Or a different reward if the opposite is the case.
+   * @param action a {@link RiskAction} of type casualties. This method's functionality does not work with any other type of
+   *               {@link RiskAction}.
+   * @return the reward for the given casualties action.
+   */
   private double getRewardForCasualties(RiskAction action) {
     return action.attackerCasualties() - action.defenderCasualties() < 0 ?
             RewardFactors.LESS_CASUALTIES_REWARD_FACTOR : RewardFactors.MORE_CASUALTIES_REWARD_FACTOR;
   }
 
+  /**
+   * Gives a reward for an occupy action. The reward is based on if more troops where left in the territory that has
+   * more surrounding enemy troops than the other. If all options leave the agent's territories with fewer troops than
+   * the surrounding enemies a different reward is given.
+   * @param gameBefore the game state before the occupy action happened
+   * @param gameAfter the game state after the occupy action happened
+   * @param action a {@link RiskAction} of type occupy. This method's functionality does not work with any other type of
+   *               {@link RiskAction}.
+   * @return the reward for the given occupy action
+   */
   private double getRewardForOccupy(Risk gameBefore, Risk gameAfter, RiskAction action) {
     double rewards = 0;
     int targetId = RiskUtils.getTargetOfAction(gameBefore.getActionRecords().get(gameBefore.getActionRecords().size()-2).getAction());
@@ -305,6 +331,10 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     return rewards;
   }
 
+  /**
+   * Gives the reward for having played cards.
+   * @return the reward for having played cards
+   */
   private double getRewardForCards() {
     return RewardFactors.CARD_PLAYED_REWARD_FACTOR;
   }
@@ -329,6 +359,15 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     super.destroy();
   }
 
+  /**
+   * Creates a HashMap that contains all territory ids and the reward that should be given for occupying those territories,
+   * according to the current game state. In distributing these rewards the method considers the continents that
+   * territories are on, if the territory is a transition or the neighbour of such a transition, the amount of
+   * neighbouring enemy territories, if a territory is the last on an enemy continent, if a territory is the last enemy
+   * territory on a continent and how many territories are already owned by the agent on their continent.
+   * @param game the current game state
+   * @return a HashMap where the key is the id of the territory and the value is the reward for that territory
+   */
   private HashMap<Integer, Double> distributeTerritoryRewards(Risk game) {
     RiskBoard board = game.getBoard();
     HashMap<Integer, Double> territoryRewards = new HashMap<>();
@@ -382,6 +421,12 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     return territoryRewards;
   }
 
+  /**
+   * Creates a HashMap that contains all continent's ids, of which the agent has at least one territory in, as keys.
+   * The value is the amount of territories the agent owns inside that particular continent.
+   * @param game the current game state
+   * @return a HashMap according to the above description
+   */
   private HashMap<Integer, Integer> createOccupiedContinentsMap(Risk game) {
     RiskBoard board = game.getBoard();
     HashMap<Integer, Integer> occupiedContinents = new HashMap<>();
@@ -399,6 +444,12 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     return occupiedContinents;
   }
 
+  /**
+   * Determines if the given territory is the last enemy territory on its continent.
+   * @param game the current game state
+   * @param territoryId the id of the territory in question
+   * @return true if the given territory is the last enemy territory on its continent, false if not
+   */
   private boolean isLastEnemyOnContinent(Risk game, int territoryId) {
     if(game.getBoard().getTerritories().get(territoryId).getOccupantPlayerId() == playerId)
       return false;
@@ -412,6 +463,13 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
     return seizedTerritories + 1 == c.getTerritories().size();
   }
 
+  /**
+   * Determines if the given territory is the last one that is not occupied by any player on a continent that
+   * has all other territory occupied by the enemy.
+   * @param game the current game state
+   * @param territoryId the id of the territory in question
+   * @return true if the given territory is the last available on an otherwise enemy continent, false if not
+   */
   private boolean isLastAvailableOfEnemyContinent(Risk game, int territoryId) {
     if(opponentIds.contains(game.getBoard().getTerritories().get(territoryId).getOccupantPlayerId()))
       return false;
@@ -426,7 +484,7 @@ public class Trisker extends AbstractGameAgent<Risk, RiskAction>
   }
 
   /**
-   * 
+   * Gives each continent in continents a base reward according to the amount of territories the continent has.
    */
   private void createRewardsByContinent() {
     continents.forEach((id, continent) -> {
