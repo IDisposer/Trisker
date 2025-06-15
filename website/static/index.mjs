@@ -1,29 +1,42 @@
 import * as Map from './map.mjs';
 import * as Tree from './tree.mjs';
-import { sleep } from './utils.mjs';
 
 const mapContainer = document.getElementById("map-container");
 const treeContainer = document.getElementById("tree-container");
 
-let currentEventIdx = 0;
+let currentEventIdx = extractEventIdxFromUrl();
+const eventStepSize = extractEventStepSizeFromUrl();
+const treeEventsEnabled = enableTreeEventFromUrl();
 let eventLogs = [];
 
 async function init() {
     await Map.init();
     await Tree.init();
     eventLogs = await (await fetch('/event-logs')).json();
-    eventLogs = eventLogs.filter(x => x.type === 'BOARD');
-    currentEventIdx = extractEventIdxFromUrl();
+    if (!treeEventsEnabled) {
+        eventLogs = eventLogs.filter(x => x.type !== 'TREE');
+    }
 }
 
 function extractEventIdxFromUrl() {
     let params = new URLSearchParams(document.location.search);
     let idx = params.get("idx");
     if (idx === null || idx === "") {
-        return idx = 0;
+        return 0;
     }
     idx = parseInt(idx, 10) - 1; // -1 to align it with the round indicator starting from 1
     return isNaN(idx) || idx < 0 ? 0 : idx >= eventLogs.length ? eventLogs.length - 1 : idx;
+}
+
+function enableTreeEventFromUrl() {
+    let params = new URLSearchParams(document.location.search);
+    return params.get("enableTree") === "false";
+}
+
+function extractEventStepSizeFromUrl() {
+    let params = new URLSearchParams(document.location.search);
+    let stepSize = parseInt(params.get("stepSize"), 10);
+    return isNaN(stepSize) || stepSize < 1 ? 20 : stepSize;
 }
 
 async function start() {
@@ -33,7 +46,6 @@ async function start() {
 }
 
 window.addEventListener('keydown', (e) => {
-    console.log(e.key);
     switch (e.key) {
         case 'F10':
             e.preventDefault();
@@ -50,9 +62,11 @@ function finishEventTypeOrJumpToNext() {
     switch (eventLogs[currentEventIdx].type) {
         case 'BOARD':
             simulateNextEvent();
-            currentEventIdx+=20;
-            if (currentEventIdx >= eventLogs.length) {
-                currentEventIdx = eventLogs.length - 1;
+            if (!treeEventsEnabled) {
+                currentEventIdx += eventStepSize - 1;
+                if (currentEventIdx >= eventLogs.length) {
+                    currentEventIdx = eventLogs.length - 1;
+                }
             }
             break;
         case 'TREE':
@@ -61,7 +75,9 @@ function finishEventTypeOrJumpToNext() {
                 return;
             }
 
-            while(eventLogs[currentEventIdx]?.type === 'TREE') currentEventIdx++;
+            while(eventLogs[currentEventIdx]?.type === 'TREE' && currentEventIdx < eventLogs.length) {
+                currentEventIdx++;
+            }
             currentEventIdx--;
             if (currentEventIdx >= 1) {
                 currentEventIdx--;

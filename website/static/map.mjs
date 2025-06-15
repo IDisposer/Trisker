@@ -215,16 +215,20 @@ function insertTerritoryString(board2d, id, data) {
     const infoString = `${id}[${data.occupantPlayerId}:${data.troops}]`;
 
     let c = 1;
+    let foundSpace = true;
     let firstIndex = x;
     let lastIndex = x;
-    while (c < infoString.length) {
+    while (c < infoString.length && foundSpace) {
+        foundSpace = false;
         if (board2d[y][firstIndex - 1] === ' ') {
             firstIndex--;
             c++;
+            foundSpace = true;
         }
         if (c < infoString.length && board2d[y][lastIndex + 1] === ' ') {
             lastIndex++;
             c++;
+            foundSpace = true;
         }
     }
     replaceAt(board2d[y], firstIndex, Array.from(infoString))
